@@ -43,6 +43,9 @@ export interface IAccount {
   lastCheckedAt: Date;
   /** Kullanıcı notu (isteğe bağlı) */
   notes?: string;
+  /** Oyun türü: 'lol' | 'valorant' | 'tft' | 'other' (Varsayılan: 'lol') */
+  game?: string;
+  category?: string;
   /** Hesabın oluşturulma zamanı */
   createdAt?: Date;
   /** Hesabın son güncellenme zamanı */
@@ -125,6 +128,17 @@ const AccountSchema = new Schema<IAccountDocument>(
       trim: true,
       maxlength: [500, 'Not en fazla 500 karakter olabilir'],
     },
+    game: {
+      type: String,
+      default: 'lol',
+      trim: true,
+      lowercase: true,
+    },
+    category: {
+      type: String,
+      default: '',
+      trim: true,
+    },
   },
   {
     timestamps: true, // createdAt & updatedAt otomatik
@@ -135,6 +149,10 @@ const AccountSchema = new Schema<IAccountDocument>(
 
 // Index: durum filtresi için
 AccountSchema.index({ status: 1 });
+// Index: oyun filtresi için
+AccountSchema.index({ game: 1 });
+// Index: kategori filtresi için
+AccountSchema.index({ category: 1 });
 // Index: son kontrol sıralaması için
 AccountSchema.index({ lastCheckedAt: 1 });
 

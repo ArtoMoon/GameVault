@@ -21,17 +21,19 @@ export type AccountData = IAccount & { _id: string };
 /** Filtre seçenekleri */
 export interface AccountFilters {
   status?: AccountStatus;
+  game?: string;
+  category?: string;
   search?: string;
 }
 
 /**
  * Tüm hesapları veritabanından çeker, isteğe bağlı olarak filtreler.
  *
- * @param {AccountFilters} [filters] - Durum ve arama filtresi
+ * @param {AccountFilters} [filters] - Durum, oyun, kategori ve arama filtresi
  * @returns {Promise<AccountData[]>} Hesap listesi (en son eklenen önce)
  *
  * @example
- * const accounts = await getAccounts({ status: 'available' });
+ * const accounts = await getAccounts({ status: 'available', game: 'lol', category: 'Main' });
  */
 export async function getAccounts(
   filters?: AccountFilters
@@ -44,11 +46,20 @@ export async function getAccounts(
     query.status = filters.status;
   }
 
+  if (filters?.game) {
+    query.game = filters.game.toLowerCase();
+  }
+
+  if (filters?.category) {
+    query.category = filters.category;
+  }
+
   if (filters?.search) {
     query.$or = [
       { riotId: { $regex: filters.search, $options: 'i' } },
       { username: { $regex: filters.search, $options: 'i' } },
       { summonerName: { $regex: filters.search, $options: 'i' } },
+      { category: { $regex: filters.search, $options: 'i' } },
     ];
   }
 
@@ -60,6 +71,8 @@ export async function getAccounts(
     ...a,
     _id: String((a as IAccount & { _id: unknown })._id),
     username: a.username ?? '',
+    game: a.game || 'lol',
+    category: a.category || '',
     lastCheckedAt: a.lastCheckedAt ? new Date(a.lastCheckedAt) : new Date(0),
     createdAt: a.createdAt ? new Date(a.createdAt) : new Date(0),
     updatedAt: a.updatedAt ? new Date(a.updatedAt) : new Date(0),
@@ -81,15 +94,16 @@ export async function getAccounts(
  * @param {string} riotId - "GameName#TAG" formatında Riot ID
  * @param {string} [platform] - Riot platform bölgesi (ör: "TR1", "EUW1"). Varsayılan: "TR1"
  * @param {string} [username] - İstemci giriş kullanıcı adı (isteğe bağlı)
+ * @param {string} [game] - Oyun türü: 'lol' | 'valorant' | 'tft' | 'other'. Varsayılan: 'lol'
+ * @param {string} [category] - Kullanıcı tanımlı kategori adı (örn: "Main", "Smurf"). İsteğe bağlı
  * @returns {Promise<{ success: boolean; error?: string; account?: AccountData }>}
- *
- * @example
- * const result = await addAccount('Faker#KR1', 'KR', 'my_login_username');
  */
 export async function addAccount(
   riotId: string,
   platform = 'TR1',
-  username?: string
+  username?: string,
+  game = 'lol',
+  category = ''
 ): Promise<{
   success: boolean;
   error?: string;
@@ -97,6 +111,9 @@ export async function addAccount(
 }> {
   try {
     await dbConnect();
+
+    const cleanGame = (game || 'lol').toLowerCase();
+    const cleanCategory = category ? category.trim() : '';
 
     // Format doğrulama ve görünmez karakter temizleme
     const { gameName, tagLine } = parseRiotId(riotId);
@@ -112,7 +129,15 @@ export async function addAccount(
     }
 
     // PUUID çek (account-v1)
-    const puuid = await getPuuidByRiotId(gameName, tagLine, platform as import('@/lib/riot/client').RiotPlatform);
+    let puuid = '';
+    try {
+      puuid = await getPuuidByRiotId(gameName, tagLine, platform as import('@/lib/riot/client').RiotPlatform);
+    } catch (apiErr) {
+      if (cleanGame === 'lol' || cleanGame === 'tft') {
+        throw apiErr;
+      }
+      puuid = '';
+    }
 
     // Kaydet
     const account = await Account.create({
@@ -122,6 +147,8 @@ export async function addAccount(
       summonerName: gameName,
       platform: platform.toUpperCase(),
       status: 'available',
+      game: cleanGame,
+      category: cleanCategory,
     });
 
     revalidatePath('/');
@@ -268,6 +295,56 @@ export async function updateAccountPlatform(
     const cleanPlatform = platform.trim().toUpperCase();
 
     await Account.findByIdAndUpdate(id, { platform: cleanPlatform });
+
+    revalidatePath('/');
+    revalidatePath(`/accounts/${id}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Bilinmeyen hata.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Hesabın kategorisini günceller.
+ *
+ * @param {string} id - MongoDB ObjectId (string)
+ * @param {string} category - Kategori adı (örn: "Main", "Smurf")
+ */
+export async function updateAccountCategory(
+  id: string,
+  category: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await dbConnect();
+    const cleanCategory = category.trim();
+
+    await Account.findByIdAndUpdate(id, { category: cleanCategory });
+
+    revalidatePath('/');
+    revalidatePath(`/accounts/${id}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Bilinmeyen hata.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Hesabın ait olduğu oyunu günceller.
+ *
+ * @param {string} id - MongoDB ObjectId (string)
+ * @param {string} game - Oyun kodu (örn: "lol", "valorant", "tft")
+ */
+export async function updateAccountGame(
+  id: string,
+  game: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await dbConnect();
+    const cleanGame = (game || 'lol').toLowerCase().trim();
+
+    await Account.findByIdAndUpdate(id, { game: cleanGame });
 
     revalidatePath('/');
     revalidatePath(`/accounts/${id}`);

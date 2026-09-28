@@ -20,6 +20,8 @@ interface AccountCardProps {
   onStatusClick?: (status: AccountStatus) => void;
   onPlatformClick?: (platform: string) => void;
   onRankClick?: (rank: string) => void;
+  onCategoryClick?: (category: string) => void;
+  onGameClick?: (game: string) => void;
 }
 
 function getRankStyle(rank?: string, unrankedLabel?: string) {
@@ -168,6 +170,8 @@ export default function AccountCard({
   onStatusClick,
   onPlatformClick,
   onRankClick,
+  onCategoryClick,
+  onGameClick,
 }: AccountCardProps) {
   const { t, language } = useLanguage();
   const [isPending, startTransition] = useTransition();
@@ -231,10 +235,24 @@ export default function AccountCard({
           </span>
         </div>
 
-        {/* Identifier: Platform & Riot ID */}
+        {/* Identifier: Platform & Game & Category & Riot ID */}
         <div className="flex-1 min-w-[200px]">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <PlatformBadge platform={account.platform} onClick={onPlatformClick} />
+            <span
+              onClick={() => onGameClick?.(account.game || 'lol')}
+              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer"
+            >
+              {account.game === 'valorant' ? '🎯 VAL' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 OYUN' : '⚔️ LoL'}
+            </span>
+            {account.category && (
+              <span
+                onClick={() => onCategoryClick?.(account.category!)}
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/30 text-yellow-300 cursor-pointer transition-colors"
+              >
+                🏷️ {account.category}
+              </span>
+            )}
             <RiotIdDisplay riotId={account.riotId} textClassName="text-sm font-bold text-white" />
             <Link
               href={`/accounts/${account._id}`}
@@ -334,10 +352,24 @@ export default function AccountCard({
               </span>
             </div>
 
-            {/* Platform & Riot ID (Login username is deliberately HIDDEN for privacy) */}
+            {/* Platform, Game, Category & Riot ID */}
             <div className="min-w-0 flex-1 flex flex-col">
-              <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                 <PlatformBadge platform={account.platform} onClick={onPlatformClick} />
+                <span
+                  onClick={() => onGameClick?.(account.game || 'lol')}
+                  className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer"
+                >
+                  {account.game === 'valorant' ? '🎯 VAL' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 OYUN' : '⚔️ LoL'}
+                </span>
+                {account.category && (
+                  <span
+                    onClick={() => onCategoryClick?.(account.category!)}
+                    className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/30 text-yellow-300 cursor-pointer transition-colors"
+                  >
+                    🏷️ {account.category}
+                  </span>
+                )}
                 <RiotIdDisplay
                   riotId={account.riotId}
                   textClassName={`${isCompact ? 'text-xs' : 'text-sm'} font-bold text-white tracking-tight`}

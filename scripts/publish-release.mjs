@@ -50,17 +50,20 @@ async function main() {
     'User-Agent': 'MyLoL-Release-Uploader',
   };
 
-  const releaseName = `MyLoL v${version} - Desktop Setup & Feature Release`;
+  const releaseName = `MyLoL v${version} - Custom Platforms & 2-Tiered Gaming Catalog Release`;
   const releaseBody = `## 🎮 MyLoL v${version} Release Notes
 
-The new desktop release for MyLoL, your League of Legends alt-account management dashboard!
+The major gaming catalog release for MyLoL, turning it into a complete multi-platform alt-account management center!
 
 ### ✨ Key Features & Improvements:
-- 🌐 **Multi-Language Support:** Instant 1-click switching between English 🇬🇧 and Turkish 🇹🇷 with persistent language preference.
-- 🚀 **First-Launch Onboarding & Dynamic Settings:** Easily configure and test your Riot API Key and MongoDB URI directly from the UI without manual \`.env\` edits.
-- 🗑️ **Account Deletion on Details Page:** Delete accounts directly from the detail view with confirmation safety and instant redirection.
-- 📁 **Enhanced UI & Tag System:** Modernized archive status indicators with folder icon (\`📁\`) and clean layout.
-- ⚡ **Windows NSIS Installer:** Fully automated desktop installer (\`.exe\`) with Desktop Shortcut and Start Menu integration.
+- 🌐 **User-Defined Platforms (Platform Yönetimi):** Create and customize your own gaming platforms (Riot Games, Steam, Epic Games, Battle.net) with custom colors, icons, and descriptions.
+- 🕹️ **2-Tiered Store Hierarchy (2 Ayrı Sayfa Mimarisi):**
+  - **Level 1: Platform & Games Portal (\`/platform/[platform]\`):** Browse platforms and explore all game portals with live account counters and direct shortcuts.
+  - **Level 2: Game Accounts Management (\`/platform/[platform]/[game]\`):** Focused game dashboard with quick back navigation, HUD metrics, and advanced filtering.
+- 🏷️ **Dynamic Categories with Colors & Icons:** Create categories (e.g. *Main*, *Smurf*, *Satılık*, *Kasılıyor*) with custom emoji icons and hex colors to organize your accounts.
+- ⚡ **Universal Account Creation:** Add accounts to any user-created platform and game with smart Riot ID / nickname validation.
+- 🏠 **Redesigned Landing Page:** Hero section with live statistics, platform showcases, and instant 1-click navigation.
+- 📦 **Windows NSIS Desktop Setup:** Standalone installer (\`.exe\`) with auto-start, desktop shortcut, and smooth updates.
 
 ---
 ### 📥 Download & Install:

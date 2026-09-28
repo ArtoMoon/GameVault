@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { AccountData } from '@/app/actions/accounts';
+import type { CategoryData } from '@/app/actions/categories';
 import type { AccountStatus } from '@/models/Account';
 import AccountCard from './AccountCard';
 import StatusBadge from './StatusBadge';
@@ -13,10 +14,16 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export interface AccountTableProps {
   accounts: AccountData[];
+  categories?: CategoryData[];
+  onOpenCategoriesModal?: () => void;
   statusFilter?: AccountStatus | '';
   onStatusFilterChange?: (status: AccountStatus | '') => void;
   platformFilter?: string;
   onPlatformFilterChange?: (platform: string) => void;
+  gameFilter?: string;
+  onGameFilterChange?: (game: string) => void;
+  categoryFilter?: string;
+  onCategoryFilterChange?: (category: string) => void;
 }
 
 type ViewMode = 'grid' | 'compact-grid' | 'list' | 'table';
@@ -24,10 +31,16 @@ type SortOption = 'lastChecked' | 'level_desc' | 'level_asc' | 'riotId_asc';
 
 export default function AccountTable({
   accounts,
+  categories = [],
+  onOpenCategoriesModal,
   statusFilter: controlledStatus,
   onStatusFilterChange,
   platformFilter: controlledPlatform,
   onPlatformFilterChange,
+  gameFilter: controlledGame,
+  onGameFilterChange,
+  categoryFilter: controlledCategory,
+  onCategoryFilterChange,
 }: AccountTableProps) {
   const { t } = useLanguage();
 
@@ -45,6 +58,8 @@ export default function AccountTable({
   ];
   const [internalStatus, setInternalStatus] = useState<AccountStatus | ''>('');
   const [internalPlatform, setInternalPlatform] = useState('');
+  const [internalGame, setInternalGame] = useState('');
+  const [internalCategory, setInternalCategory] = useState('');
   const [search, setSearch] = useState('');
   const [rankFilter, setRankFilter] = useState('');
   const [levelFilter, setLevelFilter] = useState<'30+' | '<30' | ''>('');
@@ -62,6 +77,18 @@ export default function AccountTable({
   const setPlatformFilter = (val: string) => {
     if (onPlatformFilterChange) onPlatformFilterChange(val);
     else setInternalPlatform(val);
+  };
+
+  const gameFilter = controlledGame !== undefined ? controlledGame : internalGame;
+  const setGameFilter = (val: string) => {
+    if (onGameFilterChange) onGameFilterChange(val);
+    else setInternalGame(val);
+  };
+
+  const categoryFilter = controlledCategory !== undefined ? controlledCategory : internalCategory;
+  const setCategoryFilter = (val: string) => {
+    if (onCategoryFilterChange) onCategoryFilterChange(val);
+    else setInternalCategory(val);
   };
 
   // Live counts for status tags
@@ -90,6 +117,12 @@ export default function AccountTable({
     const matchesPlatform =
       !platformFilter || (a.platform || 'TR1').toUpperCase() === platformFilter.toUpperCase();
 
+    // 2.1 Game filter
+    const matchesGame = !gameFilter || (a.game || 'lol').toLowerCase() === gameFilter.toLowerCase();
+
+    // 2.2 Category filter
+    const matchesCategory = !categoryFilter || a.category === categoryFilter;
+
     // 3. Rank filter
     const aRank = (a.rank || 'UNRANKED').toUpperCase();
     const matchesRank =
@@ -108,7 +141,7 @@ export default function AccountTable({
 
     // 5. Smart search
     const s = search.toLowerCase().trim();
-    if (!s) return matchesStatus && matchesPlatform && matchesRank && matchesLevel;
+    if (!s) return matchesStatus && matchesPlatform && matchesGame && matchesCategory && matchesRank && matchesLevel;
 
     const matchesStatusKeyword =
       (s === 'level' && a.status === 'level') ||
@@ -129,12 +162,17 @@ export default function AccountTable({
       a.riotId.toLowerCase().includes(s) ||
       (a.username && a.username.toLowerCase().includes(s)) ||
       (a.summonerName && a.summonerName.toLowerCase().includes(s)) ||
+      (a.category && a.category.toLowerCase().includes(s)) ||
+      (a.game && a.game.toLowerCase().includes(s)) ||
+      (a.notes && a.notes.toLowerCase().includes(s)) ||
       (a.platform && a.platform.toLowerCase().includes(s)) ||
       String(a.level || '').includes(s);
 
     return (
       matchesStatus &&
       matchesPlatform &&
+      matchesGame &&
+      matchesCategory &&
       matchesRank &&
       matchesLevel &&
       (matchesText || matchesStatusKeyword || matchesPlatformKeyword || matchesRankKeyword)
@@ -155,11 +193,15 @@ export default function AccountTable({
   });
 
   // Check if any filter is active
-  const hasActiveFilters = Boolean(statusFilter || platformFilter || rankFilter || levelFilter || search);
+  const hasActiveFilters = Boolean(
+    statusFilter || platformFilter || gameFilter || categoryFilter || rankFilter || levelFilter || search
+  );
 
   const clearAllFilters = () => {
     setStatusFilter('');
     setPlatformFilter('');
+    setGameFilter('');
+    setCategoryFilter('');
     setRankFilter('');
     setLevelFilter('');
     setSearch('');
@@ -167,150 +209,73 @@ export default function AccountTable({
 
   return (
     <section>
-      {/* ── 1. DURUM / TAG HIZLI FİLTRELERİ (Canlı Sayılarla) ── */}
-      <div className="mb-4 bg-[#0a1322]/70 p-3.5 rounded-2xl border border-white/5 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <span>🏷️</span> {t('status_tags_title')}
-          </span>
-          {statusFilter && (
+      {/* ── 🏷️ KATEGORİ FİLTRE ÇİPLERİ (CATEGORY CHIPS) ── */}
+      {categories && categories.length > 0 && (
+        <div className="mb-4 bg-[#08101e]/80 p-3 rounded-2xl border border-white/5 backdrop-blur-md flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1.5">
+              <span>🏷️</span> {t('category') || 'Kategori'}:
+            </span>
+
+            {/* Tümü */}
             <button
-              onClick={() => setStatusFilter('')}
-              className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+              type="button"
+              onClick={() => setCategoryFilter('')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                categoryFilter === ''
+                  ? 'bg-white/15 text-white border border-white/30 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
             >
-              {t('reset_status')}
+              {t('tag_all') || 'Tümü'}
+            </button>
+
+            {/* Özel Kategori Çipleri */}
+            {categories.map((cat) => {
+              const count = accounts.filter((a) => a.category === cat.name).length;
+              const isSelected = categoryFilter === cat.name;
+
+              return (
+                <button
+                  key={cat._id}
+                  type="button"
+                  onClick={() => setCategoryFilter(isSelected ? '' : cat.name)}
+                  style={{
+                    backgroundColor: isSelected ? `${cat.color}35` : 'transparent',
+                    borderColor: isSelected ? cat.color : `${cat.color}30`,
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    isSelected ? 'text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono text-slate-300">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {onOpenCategoriesModal && (
+            <button
+              type="button"
+              onClick={onOpenCategoriesModal}
+              className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+              title="Kategorileri Düzenle"
+            >
+              <span>⚙️</span>
+              <span className="hidden sm:inline">Düzenle</span>
             </button>
           )}
         </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          {/* Tümü */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter('')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === ''
-                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50 shadow-md shadow-blue-500/10'
-                : 'bg-[#0e192d]/80 text-slate-400 border border-white/5 hover:border-white/20 hover:text-white'
-            }`}
-          >
-            <span>🗂️ {t('tag_all')}</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-white font-mono">
-              {totalCount}
-            </span>
-          </button>
-
-          {/* ⚡ LEVEL TAGI (Özel Vurgu) */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'level' ? '' : 'level')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === 'level'
-                ? 'bg-purple-500/30 text-purple-200 border border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.4)] ring-1 ring-purple-400/50'
-                : 'bg-[#0e192d]/80 text-purple-300/80 border border-purple-500/20 hover:border-purple-500/50 hover:text-purple-200 hover:bg-purple-500/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
-            <span>⚡ {t('status_level')}</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                statusFilter === 'level' ? 'bg-purple-500/40 text-purple-100 font-bold' : 'bg-purple-500/20 text-purple-300'
-              }`}
-            >
-              {levelCount}
-            </span>
-          </button>
-
-          {/* ✅ MEVCUT TAGI */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'available' ? '' : 'available')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === 'available'
-                ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/60 shadow-[0_0_15px_rgba(168,85,247,0.4)] ring-1 ring-emerald-400/50'
-                : 'bg-[#0e192d]/80 text-emerald-300/80 border border-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-200 hover:bg-emerald-500/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-            <span>✅ {t('status_available')}</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                statusFilter === 'available' ? 'bg-emerald-500/40 text-emerald-100 font-bold' : 'bg-emerald-500/20 text-emerald-300'
-              }`}
-            >
-              {availableCount}
-            </span>
-          </button>
-
-          {/* 📁 ARŞİV TAGI */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'archived' ? '' : 'archived')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === 'archived'
-                ? 'bg-rose-500/30 text-rose-200 border border-rose-500/60 shadow-[0_0_15px_rgba(244,63,94,0.4)] ring-1 ring-rose-400/50'
-                : 'bg-[#0e192d]/80 text-rose-300/80 border border-rose-500/20 hover:border-rose-500/50 hover:text-rose-200 hover:bg-rose-500/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
-            <span>📁 {t('status_archived')}</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                statusFilter === 'archived' ? 'bg-rose-500/40 text-rose-100 font-bold' : 'bg-rose-500/20 text-rose-300'
-              }`}
-            >
-              {archivedCount}
-            </span>
-          </button>
-
-          {/* 🎮 AKTİF TAGI */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'active' ? '' : 'active')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === 'active'
-                ? 'bg-blue-500/30 text-blue-200 border border-blue-500/60 shadow-[0_0_15px_rgba(59,130,246,0.4)] ring-1 ring-blue-400/50'
-                : 'bg-[#0e192d]/80 text-blue-300/80 border border-blue-500/20 hover:border-blue-500/50 hover:text-blue-200 hover:bg-blue-500/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.8)]" />
-            <span>🎮 {t('status_active')}</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                statusFilter === 'active' ? 'bg-blue-500/40 text-blue-100 font-bold' : 'bg-blue-500/20 text-blue-300'
-              }`}
-            >
-              {activeCount}
-            </span>
-          </button>
-
-          {/* 🚫 BAN TAGI */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'error_checking' ? '' : 'error_checking')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-              statusFilter === 'error_checking'
-                ? 'bg-amber-500/30 text-amber-200 border border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50'
-                : 'bg-[#0e192d]/80 text-amber-300/80 border border-amber-500/20 hover:border-amber-500/50 hover:text-amber-200 hover:bg-amber-500/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
-            <span>🚫 {t('status_error_checking')}</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                statusFilter === 'error_checking' ? 'bg-amber-500/40 text-amber-100 font-bold' : 'bg-amber-500/20 text-amber-300'
-              }`}
-            >
-              {errorCount}
-            </span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* ── 2. SUNUCU, RANK & SEVİYE TAGLARI ── */}
       <div className="flex flex-wrap items-center gap-2.5 mb-4">
         {/* Sunucu Butonları */}
-        <div className="flex items-center gap-1.5 bg-[#0a1322]/70 p-1.5 rounded-xl border border-white/5 overflow-x-auto">
+        <div className="flex items-center gap-1.5 bg-[#0a1322]/70 p-1.5 rounded-xl border border-white/5 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setPlatformFilter('')}
@@ -518,6 +483,20 @@ export default function AccountTable({
             </span>
           )}
 
+          {gameFilter && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs bg-cyan-500/20 text-cyan-200 border border-cyan-500/40">
+              Oyun: <strong className="uppercase">{gameFilter}</strong>
+              <button onClick={() => setGameFilter('')} className="hover:text-white cursor-pointer">✕</button>
+            </span>
+          )}
+
+          {categoryFilter && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs bg-yellow-500/20 text-yellow-200 border border-yellow-500/40">
+              Kategori: <strong>{categoryFilter}</strong>
+              <button onClick={() => setCategoryFilter('')} className="hover:text-white cursor-pointer">✕</button>
+            </span>
+          )}
+
           {platformFilter && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs bg-rose-500/20 text-rose-200 border border-rose-500/40">
               Sunucu: <strong>{platformFilter}</strong>
@@ -594,6 +573,8 @@ export default function AccountTable({
                   onStatusClick={setStatusFilter}
                   onPlatformClick={setPlatformFilter}
                   onRankClick={setRankFilter}
+                  onCategoryClick={setCategoryFilter}
+                  onGameClick={setGameFilter}
                 />
               ))}
             </div>
@@ -609,6 +590,8 @@ export default function AccountTable({
                   onStatusClick={setStatusFilter}
                   onPlatformClick={setPlatformFilter}
                   onRankClick={setRankFilter}
+                  onCategoryClick={setCategoryFilter}
+                  onGameClick={setGameFilter}
                 />
               ))}
             </div>
@@ -624,6 +607,8 @@ export default function AccountTable({
                   onStatusClick={setStatusFilter}
                   onPlatformClick={setPlatformFilter}
                   onRankClick={setRankFilter}
+                  onCategoryClick={setCategoryFilter}
+                  onGameClick={setGameFilter}
                 />
               ))}
             </div>
@@ -635,6 +620,8 @@ export default function AccountTable({
                 <thead className="text-xs uppercase bg-[#050e18]/90 text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">{t('th_account')}</th>
+                    <th className="px-4 py-3 font-semibold">Oyun</th>
+                    <th className="px-4 py-3 font-semibold">Kategori</th>
                     <th className="px-4 py-3 font-semibold">{t('th_region')}</th>
                     <th className="px-4 py-3 font-semibold">{t('th_status')}</th>
                     <th className="px-4 py-3 font-semibold text-center">{t('th_level')}</th>
@@ -657,6 +644,26 @@ export default function AccountTable({
                             ↗
                           </Link>
                         </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          onClick={() => setGameFilter(account.game || 'lol')}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer"
+                        >
+                          {account.game === 'valorant' ? '🎯 VAL' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 OYUN' : '⚔️ LoL'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {account.category ? (
+                          <span
+                            onClick={() => setCategoryFilter(account.category!)}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/30 text-yellow-300 cursor-pointer transition-colors"
+                          >
+                            🏷️ {account.category}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-xs">–</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5">
                         <PlatformBadge platform={account.platform} onClick={setPlatformFilter} />

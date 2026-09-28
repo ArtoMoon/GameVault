@@ -27,45 +27,58 @@ export default function AccountSyncButton() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="relative inline-block">
       <button
         id="sync-all-btn"
-        className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-sans text-sm font-semibold cursor-pointer border-none transition-all whitespace-nowrap bg-gradient-to-br from-[#1a78c2] to-[#0f5fa3] text-white shadow-[0_2px_12px_rgba(26,120,194,0.4)] hover:from-[#3d9be9] hover:to-[#1a78c2] hover:shadow-[0_4px_20px_rgba(61,155,233,0.5)] hover:-translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed ${isPending ? 'animate-pulse' : ''}`}
+        type="button"
+        className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl font-sans text-xs font-bold cursor-pointer transition-all whitespace-nowrap bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+          isPending ? 'animate-pulse' : ''
+        }`}
         onClick={handleSync}
         disabled={isPending}
       >
         {isPending ? (
           <>
             <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin-slow" />
-            {t('syncing_progress')}
+            <span>{t('syncing_progress')}</span>
           </>
         ) : (
-          `🔄 ${t('sync_all_btn')}`
+          <>
+            <span>🔄</span>
+            <span>{t('sync_btn')}</span>
+          </>
         )}
       </button>
 
       {results && (
-        <div className="bg-[#0e192d]/85 border border-[#3d9be9]/18 rounded-xl p-5 backdrop-blur-md text-sm">
-          <div className="flex flex-wrap gap-4 mb-3">
-            <span className="text-[#e8f0fe]">
-              {t('stat_total')}: <strong>{results.summary.total}</strong>
+        <div className="absolute right-0 top-full mt-2 w-80 z-50 bg-[#0a1424] border border-blue-500/30 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl text-xs animate-fade-in">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+            <span className="font-bold text-white flex items-center gap-1.5">
+              <span>⚡</span> Senkronizasyon Tamamlandı
             </span>
-            <span className="text-green-300">
-              ✅ {t('sync_success')}: <strong>{results.summary.success}</strong>
-            </span>
-            <span className="text-red-300">
-              ❌ {t('sync_failed')}: <strong>{results.summary.failed}</strong>
-            </span>
+            <button
+              onClick={() => setResults(null)}
+              className="text-slate-400 hover:text-white cursor-pointer text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex items-center justify-between text-slate-300 mb-2">
+            <span>Toplam: <strong className="text-white font-mono">{results.summary.total}</strong></span>
+            <span className="text-emerald-400">✓ {results.summary.success} başarılı</span>
+            {results.summary.failed > 0 && (
+              <span className="text-rose-400">✕ {results.summary.failed} hata</span>
+            )}
           </div>
 
           {/* Durum değişen hesaplar */}
           {results.results.some((r) => r.statusChanged) && (
-            <div className="mt-3 pt-3 border-t border-[#3d9be9]/18">
-              <p className="text-amber-500 font-semibold mb-2">⚠️ Durum Değişen Hesaplar:</p>
+            <div className="mt-2 pt-2 border-t border-white/10 space-y-1 max-h-32 overflow-y-auto no-scrollbar">
+              <p className="text-amber-400 font-semibold text-[11px]">⚠️ Değişen Hesaplar:</p>
               {results.results
                 .filter((r) => r.statusChanged)
                 .map((r) => (
-                  <p key={r.riotId} className="text-[#8bafd4] py-0.5">
+                  <p key={r.riotId} className="text-slate-300 text-[11px] truncate">
                     {r.riotId} → <strong className="text-white">{r.newStatus}</strong>
                   </p>
                 ))}

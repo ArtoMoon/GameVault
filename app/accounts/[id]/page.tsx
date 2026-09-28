@@ -25,11 +25,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+import { getCategories } from '@/app/actions/categories';
+
 export default async function AccountDetailPage({ params }: PageProps) {
   const { id } = await params;
   await dbConnect();
 
-  const raw = await Account.findById(id).lean<IAccount & { _id: unknown }>();
+  const [raw, categories] = await Promise.all([
+    Account.findById(id).lean<IAccount & { _id: unknown }>(),
+    getCategories(),
+  ]);
 
   if (!raw) {
     notFound();
@@ -38,6 +43,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
   const account: AccountData = {
     ...raw,
     _id: String(raw._id),
+    game: raw.game || 'lol',
+    category: raw.category || '',
     lastCheckedAt: raw.lastCheckedAt ? new Date(raw.lastCheckedAt) : new Date(0),
     createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(0),
     updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(0),
@@ -45,14 +52,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
     matches: raw.matches || [],
   } as AccountData;
 
-  // Tüm verileri (ranks, matches vb.) Account modelinden alıyoruz. 
-  // Live API Fetching kaldırıldı!
-
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
       <BackToDashboardLink />
 
-      <AccountDetailClient account={account} />
+      <AccountDetailClient account={account} categories={categories} />
     </div>
   );
 }

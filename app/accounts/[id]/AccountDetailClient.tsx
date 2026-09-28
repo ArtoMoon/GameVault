@@ -8,8 +8,11 @@ import {
   updateAccountUsername,
   updateAccountStatus,
   updateAccountPlatform,
+  updateAccountCategory,
+  updateAccountGame,
   deleteAccount,
 } from '@/app/actions/accounts';
+import type { CategoryData } from '@/app/actions/categories';
 import type { AccountStatus } from '@/models/Account';
 import { syncAccount, syncMatchHistory } from '@/app/actions/accountSync';
 import StatusBadge from '@/components/StatusBadge';
@@ -22,6 +25,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface AccountDetailClientProps {
   account: AccountData;
+  categories?: CategoryData[];
 }
 
 function calculateWinRate(wins: number, losses: number) {
@@ -32,6 +36,7 @@ function calculateWinRate(wins: number, losses: number) {
 
 export default function AccountDetailClient({
   account: initialAccount,
+  categories = [],
 }: AccountDetailClientProps) {
   const { t, language } = useLanguage();
   const router = useRouter();
@@ -131,6 +136,32 @@ export default function AccountDetailClient({
       } else {
         setAccount((prev) => ({ ...prev, platform: oldPlatform }));
         setPlatformMsg('❌ ' + (res.error || 'Failed'));
+      }
+    });
+  }
+
+  function handleCategoryChange(newCategory: string) {
+    const oldCat = account.category;
+    setAccount((prev) => ({ ...prev, category: newCategory }));
+    startTransition(async () => {
+      const res = await updateAccountCategory(account._id, newCategory);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setAccount((prev) => ({ ...prev, category: oldCat }));
+      }
+    });
+  }
+
+  function handleGameChange(newGame: string) {
+    const oldGame = account.game;
+    setAccount((prev) => ({ ...prev, game: newGame }));
+    startTransition(async () => {
+      const res = await updateAccountGame(account._id, newGame);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setAccount((prev) => ({ ...prev, game: oldGame }));
       }
     });
   }
@@ -311,6 +342,16 @@ export default function AccountDetailClient({
             </div>
 
             <div>
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-white/10 text-slate-300 border border-white/10">
+                  {account.game === 'valorant' ? '🎯 Valorant' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 Diğer Oyun' : '⚔️ League of Legends'}
+                </span>
+                {account.category && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">
+                    🏷️ {account.category}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <RiotIdDisplay
                   riotId={account.riotId}
@@ -513,6 +554,41 @@ export default function AccountDetailClient({
                   </option>
                 </select>
               </div>
+
+              {/* Oyun Seçici */}
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-medium">Oyun:</span>
+                <select
+                  className="bg-[#0f1923] border border-blue-500/30 hover:border-blue-400 rounded-lg px-2.5 py-1 text-xs text-[#e8f0fe] cursor-pointer outline-none transition-colors font-medium"
+                  value={account.game || 'lol'}
+                  onChange={(e) => handleGameChange(e.target.value)}
+                  disabled={isPending}
+                >
+                  <option value="lol" className="bg-[#0f1923]">⚔️ League of Legends</option>
+                  <option value="valorant" className="bg-[#0f1923]">🎯 Valorant</option>
+                  <option value="tft" className="bg-[#0f1923]">♟️ TFT</option>
+                  <option value="other" className="bg-[#0f1923]">🎮 Diğer Oyunlar</option>
+                </select>
+              </div>
+
+              {/* Kategori Seçici */}
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-medium">Kategori:</span>
+                <select
+                  className="bg-[#0f1923] border border-yellow-500/30 hover:border-yellow-400 rounded-lg px-2.5 py-1 text-xs text-[#e8f0fe] cursor-pointer outline-none transition-colors font-medium"
+                  value={account.category || ''}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  disabled={isPending}
+                >
+                  <option value="" className="bg-[#0f1923] text-slate-400">📁 Kategorisiz</option>
+                  {categories.map((c) => (
+                    <option key={c._id} value={c.name} className="bg-[#0f1923]">
+                      {c.icon} {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex justify-between">
                 <span className="text-slate-400">{t('th_last_checked')}:</span>
                 <span className="text-white font-medium">{lastChecked}</span>

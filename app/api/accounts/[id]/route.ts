@@ -24,11 +24,11 @@ interface RouteContext {
  */
 export async function DELETE(
   _request: NextRequest,
-  context: RouteContext
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     await dbConnect();
-    const { id } = await context.params;
+    const { id } = await params;
 
     const result = await Account.findByIdAndDelete(id);
     if (!result) {
@@ -53,11 +53,11 @@ export async function DELETE(
  */
 export async function PATCH(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     await dbConnect();
-    const { id } = await context.params;
+    const { id } = await params;
 
     const body = await request.json();
     const allowedFields = ['status', 'notes'];

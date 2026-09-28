@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 /**
@@ -11,6 +12,10 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
  */
 export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
+  const pathname = usePathname();
+
+  const isHome = pathname === '/';
+  const isPlatform = pathname.startsWith('/platform') || pathname.startsWith('/accounts');
 
   return (
     <nav className="sticky top-0 z-50 bg-[#050e18]/95 backdrop-blur-md border-b border-yellow-600/20 shadow-[0_4px_24px_rgba(0,0,0,0.6)] drag-region select-none">
@@ -39,14 +44,31 @@ export default function Navbar() {
         </div>
 
         {/* Orta & Sağ Alan: Navigasyon, Dil Seçici ve Sistem Bilgisi */}
-        <div className="flex items-center gap-4 no-drag-region pr-36">
+        <div className="flex items-center gap-3 md:gap-4 no-drag-region pr-36">
+          {/* Anasayfa Linki */}
           <Link
             href="/"
-            className="text-xs font-semibold text-slate-300 hover:text-white transition-colors relative group py-1 flex items-center gap-1.5"
+            className={`text-xs font-bold transition-all py-1 px-2.5 rounded-lg flex items-center gap-1.5 ${
+              isHome
+                ? 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
           >
-            <span>📊</span>
-            <span>{t('dashboard')}</span>
-            <span className="absolute bottom-[-2px] left-0 w-0 h-0.5 bg-yellow-500 transition-all duration-200 group-hover:w-full" />
+            <span>🏠</span>
+            <span>{t('nav_home')}</span>
+          </Link>
+
+          {/* Platform Linki (Platform & Oyun Seçim Sayfası) */}
+          <Link
+            href="/platform/riot"
+            className={`text-xs font-bold transition-all py-1 px-2.5 rounded-lg flex items-center gap-1.5 ${
+              isPlatform
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.25)]'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <span>🎮</span>
+            <span>{t('nav_platform')}</span>
           </Link>
 
           {/* Ayarlar & API Key Butonu */}
