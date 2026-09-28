@@ -16,7 +16,7 @@ export default function DashboardHeader() {
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-full text-xs font-bold tracking-wider uppercase">
             {t('riot_client_manager')}
           </span>
-          <span className="text-xs text-slate-500">v0.1.0</span>
+          <span className="text-xs text-slate-500">v0.2.1</span>
         </div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
           {t('dashboard_title_1')}{' '}
