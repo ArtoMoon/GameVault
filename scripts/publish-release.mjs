@@ -25,6 +25,7 @@ async function main() {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
   const version = pkg.version;
   const tag = `v${version}`;
+  
   const owner = 'ArtoMoon';
   const repo = 'lolstock';
 
@@ -50,24 +51,42 @@ async function main() {
     'User-Agent': 'MyLoL-Release-Uploader',
   };
 
-  const releaseName = `MyLoL v${version} - Custom Platforms & 2-Tiered Gaming Catalog Release`;
-  const releaseBody = `## 🎮 MyLoL v${version} Release Notes
+  const releaseName = `MyLoL v${version} - Albion Online Entegrasyonu, Karakter Avatarı & Platform Düzenleme`;
+  const releaseBody = `## 🎮 MyLoL v${version} Yama Notları / Release Notes
 
-The major gaming catalog release for MyLoL, turning it into a complete multi-platform alt-account management center!
-
-### ✨ Key Features & Improvements:
-- 🌐 **User-Defined Platforms (Platform Yönetimi):** Create and customize your own gaming platforms (Riot Games, Steam, Epic Games, Battle.net) with custom colors, icons, and descriptions.
-- 🕹️ **2-Tiered Store Hierarchy (2 Ayrı Sayfa Mimarisi):**
-  - **Level 1: Platform & Games Portal (\`/platform/[platform]\`):** Browse platforms and explore all game portals with live account counters and direct shortcuts.
-  - **Level 2: Game Accounts Management (\`/platform/[platform]/[game]\`):** Focused game dashboard with quick back navigation, HUD metrics, and advanced filtering.
-- 🏷️ **Dynamic Categories with Colors & Icons:** Create categories (e.g. *Main*, *Smurf*, *Satılık*, *Kasılıyor*) with custom emoji icons and hex colors to organize your accounts.
-- ⚡ **Universal Account Creation:** Add accounts to any user-created platform and game with smart Riot ID / nickname validation.
-- 🏠 **Redesigned Landing Page:** Hero section with live statistics, platform showcases, and instant 1-click navigation.
-- 📦 **Windows NSIS Desktop Setup:** Standalone installer (\`.exe\`) with auto-start, desktop shortcut, and smooth updates.
+Bu güncelleme ile MyLoL'e tam teşekküllü **Albion Online** desteği, canlı killboard API senkronizasyonu, orijinal oyun içi karakter portreleri ve platforma göre özelleştirilebilir hesap düzenleme paneli eklendi!
 
 ---
-### 📥 Download & Install:
-Download **\`MyLoL-Setup-${version}.exe\`** from the **Assets** section below to install and run the application on Windows.`;
+
+### ✨ Yenilikler ve Geliştirmeler (Changelog):
+
+#### 🛡️ 1. Albion Online Canlı API Entegrasyonu
+- **API Anahtarsız Karakter Sorgulama:** Albion Online'ın resmi killboard altyapısı üzerinden karakter adı ile sorgulama desteği eklendi.
+- **Canlı İstatistikler:** Karakterin **Toplam Fame**, **PvP Kill Fame**, **PvE Fame**, **Guild (Lonca)** ve **Alliance** bilgileri otomatik olarak çekilir.
+- **Otomatik Seviye ve Tier Derecelendirmesi:** Toplam Fame miktarına göre hesaplanan Tier 3 - Tier 8 derecelendirmesi ve seviye hesaplaması entegre edildi.
+- **Bölge & Sunucu Desteği:** Albion için Europe (AMS), Americas (US), Asia (SGP) ve Global sunucu seçimleri eklendi.
+- **Hatasız Senkronizasyon:** Riot API çağrıları ayrıştırılarak Albion ve diğer harici oyunlarda oluşan hatalı ban/hata (\`error_checking\`) durumu tamamen ortadan kaldırıldı.
+
+#### 🖼️ 2. Gerçek Karakter Avatar & Profil Resmi
+- **Orijinal Albion Portresi:** Karakterin oyun içi avatar kimliği (\`AVATAR_07\` vb.) çekilerek orijinal portre görseli entegre edildi.
+- **Tam Kare Çerçeve:** Portrelerin köşeden köşeye tam kare oturması için optimize edilmiş ölçekleme ve modern çerçeve tasarımı uygulandı.
+- **Tüm Görünümlerde Aktif:** Hesap Detay sayfasının yanı sıra Izgara, Kompakt Izgara ve Liste görünümlerinde de karakter avatarı gösterilir.
+
+#### ✏️ 3. Platforma Göre Hesap Düzenleme (Universal Account Edit Modal)
+- **Tüm Alanları Düzenleme:** Hesap adı/karakter adı, giriş kullanıcı adı, platform/sunucu, seviye, lig/tier, durum, kategori ve notlar tek bir pencereden güncellenebilir.
+- **Hızlı Erişim:** Tüm kart ve tablo görünümlerine hızlı **✏️ Düzenle** butonları eklendi.
+
+#### 🏷️ 4. Kategori Yönetimi İyileştirmesi
+- Silinen varsayılan kategorilerin (\`Main\`, \`Smurf\`, \`Dereceli\`, \`ARAM / Eğlence\`) tekrar kendiliğinden oluşması (\`respawn\`) engellendi. Veritabanına kalıcı ayar bayrağı eklendi.
+
+#### ↩️ 5. Gezinme & Arayüz Düzeltmeleri
+- **Geri Gel Tuşu:** Hesap detay sayfasındaki geri dön butonu artık \`router.back()\` ile doğrudan geldiğiniz platform/oyun sayfasına geri döner.
+- **Görsel Düzeltmeler:** Çift ok (\`← ←\`) hatası ve rozetlerin taşarak kesilmesi giderildi.
+
+---
+
+### 📥 İndirme ve Kurulum / Download & Install:
+Aşağıdaki **Assets** bölümünden **\`MyLoL-Setup-${version}.exe\`** dosyasını indirerek doğrudan kurabilir ve güncel sürümü kullanabilirsiniz.`;
 
   // 1. Check if release exists
   let release;

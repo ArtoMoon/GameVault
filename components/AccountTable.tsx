@@ -3,18 +3,21 @@
 import { useState } from 'react';
 import type { AccountData } from '@/app/actions/accounts';
 import type { CategoryData } from '@/app/actions/categories';
+import type { PlatformData } from '@/app/actions/platforms';
 import type { AccountStatus } from '@/models/Account';
 import AccountCard from './AccountCard';
 import StatusBadge from './StatusBadge';
 import RankBadge from './RankBadge';
 import PlatformBadge, { FlagTR, FlagEU, FlagUS } from './PlatformBadge';
 import RiotIdDisplay from './RiotIdDisplay';
+import EditAccountModal from './EditAccountModal';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export interface AccountTableProps {
   accounts: AccountData[];
   categories?: CategoryData[];
+  platformsList?: PlatformData[];
   onOpenCategoriesModal?: () => void;
   statusFilter?: AccountStatus | '';
   onStatusFilterChange?: (status: AccountStatus | '') => void;
@@ -24,6 +27,7 @@ export interface AccountTableProps {
   onGameFilterChange?: (game: string) => void;
   categoryFilter?: string;
   onCategoryFilterChange?: (category: string) => void;
+  gameSlug?: string;
 }
 
 type ViewMode = 'grid' | 'compact-grid' | 'list' | 'table';
@@ -32,6 +36,7 @@ type SortOption = 'lastChecked' | 'level_desc' | 'level_asc' | 'riotId_asc';
 export default function AccountTable({
   accounts,
   categories = [],
+  platformsList = [],
   onOpenCategoriesModal,
   statusFilter: controlledStatus,
   onStatusFilterChange,
@@ -41,21 +46,38 @@ export default function AccountTable({
   onGameFilterChange,
   categoryFilter: controlledCategory,
   onCategoryFilterChange,
+  gameSlug,
 }: AccountTableProps) {
   const { t } = useLanguage();
 
-  const rankOptions = [
-    { value: '', label: t('rank_all') },
-    { value: 'UNRANKED', label: t('rank_unranked') },
-    { value: 'IRON', label: t('rank_iron') },
-    { value: 'BRONZE', label: t('rank_bronze') },
-    { value: 'SILVER', label: t('rank_silver') },
-    { value: 'GOLD', label: t('rank_gold') },
-    { value: 'PLATINUM', label: t('rank_platinum') },
-    { value: 'EMERALD', label: t('rank_emerald') },
-    { value: 'DIAMOND', label: t('rank_diamond') },
-    { value: 'MASTER+', label: t('rank_master_plus') },
-  ];
+  const activeGame = (gameSlug || controlledGame || '').toLowerCase();
+  const isAlbion = activeGame === 'albion';
+  const isLoL = !activeGame || activeGame === 'lol';
+
+  const rankOptions = isAlbion
+    ? [
+        { value: '', label: 'Tüm Ranklar' },
+        { value: 'Tier 4', label: 'Tier 4' },
+        { value: 'Tier 5', label: 'Tier 5' },
+        { value: 'Tier 6', label: 'Tier 6' },
+        { value: 'Tier 7', label: 'Tier 7' },
+        { value: 'Tier 8', label: 'Tier 8' },
+        { value: 'Elder', label: 'Elder' },
+        { value: 'Master', label: 'Master' },
+      ]
+    : [
+        { value: '', label: t('rank_all') },
+        { value: 'UNRANKED', label: t('rank_unranked') },
+        { value: 'IRON', label: t('rank_iron') },
+        { value: 'BRONZE', label: t('rank_bronze') },
+        { value: 'SILVER', label: t('rank_silver') },
+        { value: 'GOLD', label: t('rank_gold') },
+        { value: 'PLATINUM', label: t('rank_platinum') },
+        { value: 'EMERALD', label: t('rank_emerald') },
+        { value: 'DIAMOND', label: t('rank_diamond') },
+        { value: 'MASTER+', label: t('rank_master_plus') },
+      ];
+
   const [internalStatus, setInternalStatus] = useState<AccountStatus | ''>('');
   const [internalPlatform, setInternalPlatform] = useState('');
   const [internalGame, setInternalGame] = useState('');
@@ -65,6 +87,7 @@ export default function AccountTable({
   const [levelFilter, setLevelFilter] = useState<'30+' | '<30' | ''>('');
   const [sortBy, setSortBy] = useState<SortOption>('lastChecked');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [editingAccount, setEditingAccount] = useState<AccountData | null>(null);
 
   // Controlled vs internal state
   const statusFilter = controlledStatus !== undefined ? controlledStatus : internalStatus;
@@ -288,83 +311,134 @@ export default function AccountTable({
             {t('all_regions')}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setPlatformFilter(platformFilter === 'TR1' ? '' : 'TR1')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              platformFilter === 'TR1'
-                ? 'bg-rose-500/25 text-rose-200 border border-rose-500/50 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <FlagTR className="w-3.5 h-2.5" />
-            <span>TR</span>
-            <span className="text-[10px] font-mono opacity-80">({trCount})</span>
-          </button>
+          {isAlbion ? (
+            <>
+              {['Europe', 'Americas', 'Asia', 'Global'].map((srv) => {
+                const count = accounts.filter(
+                  (a) => (a.platform || '').toLowerCase() === srv.toLowerCase()
+                ).length;
+                const isSelected = platformFilter.toLowerCase() === srv.toLowerCase();
+                return (
+                  <button
+                    key={srv}
+                    type="button"
+                    onClick={() => setPlatformFilter(isSelected ? '' : srv)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      isSelected
+                        ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{srv === 'Europe' ? '🇪🇺' : srv === 'Americas' ? '🇺🇸' : srv === 'Asia' ? '🌏' : '🌐'}</span>
+                    <span>{srv}</span>
+                    <span className="text-[10px] font-mono opacity-80">({count})</span>
+                  </button>
+                );
+              })}
+            </>
+          ) : isLoL ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setPlatformFilter(platformFilter === 'TR1' ? '' : 'TR1')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                  platformFilter === 'TR1'
+                    ? 'bg-rose-500/25 text-rose-200 border border-rose-500/50 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <FlagTR className="w-3.5 h-2.5" />
+                <span>TR</span>
+                <span className="text-[10px] font-mono opacity-80">({trCount})</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setPlatformFilter(platformFilter === 'EUW1' ? '' : 'EUW1')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              platformFilter === 'EUW1'
-                ? 'bg-sky-500/25 text-sky-200 border border-sky-500/50 shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <FlagEU className="w-3.5 h-2.5" />
-            <span>West</span>
-            <span className="text-[10px] font-mono opacity-80">({euwCount})</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => setPlatformFilter(platformFilter === 'EUW1' ? '' : 'EUW1')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                  platformFilter === 'EUW1'
+                    ? 'bg-sky-500/25 text-sky-200 border border-sky-500/50 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <FlagEU className="w-3.5 h-2.5" />
+                <span>West</span>
+                <span className="text-[10px] font-mono opacity-80">({euwCount})</span>
+              </button>
 
-          {eunCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setPlatformFilter(platformFilter === 'EUN1' ? '' : 'EUN1')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                platformFilter === 'EUN1'
-                  ? 'bg-teal-500/25 text-teal-200 border border-teal-500/50 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <FlagEU className="w-3.5 h-2.5" />
-              <span>EUNE</span>
-              <span className="text-[10px] font-mono opacity-80">({eunCount})</span>
-            </button>
-          )}
+              {eunCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPlatformFilter(platformFilter === 'EUN1' ? '' : 'EUN1')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    platformFilter === 'EUN1'
+                      ? 'bg-teal-500/25 text-teal-200 border border-teal-500/50 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FlagEU className="w-3.5 h-2.5" />
+                  <span>EUNE</span>
+                  <span className="text-[10px] font-mono opacity-80">({eunCount})</span>
+                </button>
+              )}
 
-          {naCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setPlatformFilter(platformFilter === 'NA1' ? '' : 'NA1')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                platformFilter === 'NA1'
-                  ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-500/50 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <FlagUS className="w-3.5 h-2.5" />
-              <span>NA</span>
-              <span className="text-[10px] font-mono opacity-80">({naCount})</span>
-            </button>
+              {naCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPlatformFilter(platformFilter === 'NA1' ? '' : 'NA1')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    platformFilter === 'NA1'
+                      ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-500/50 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FlagUS className="w-3.5 h-2.5" />
+                  <span>NA</span>
+                  <span className="text-[10px] font-mono opacity-80">({naCount})</span>
+                </button>
+              )}
+            </>
+          ) : (
+            Array.from(new Set(accounts.map((a) => a.platform).filter(Boolean))).map((plat) => {
+              const count = accounts.filter((a) => a.platform === plat).length;
+              const isSelected = platformFilter.toLowerCase() === plat.toLowerCase();
+              return (
+                <button
+                  key={plat}
+                  type="button"
+                  onClick={() => setPlatformFilter(isSelected ? '' : plat)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    isSelected
+                      ? 'bg-blue-500/25 text-blue-200 border border-blue-500/50 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>{plat}</span>
+                  <span className="text-[10px] font-mono opacity-80">({count})</span>
+                </button>
+              );
+            })
           )}
         </div>
 
-        {/* 🎯 30+ Level Tag Butonu */}
-        <button
-          type="button"
-          onClick={() => setLevelFilter(levelFilter === '30+' ? '' : '30+')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-            levelFilter === '30+'
-              ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-              : 'bg-[#0a1322]/70 text-slate-400 border border-white/5 hover:border-amber-500/30 hover:text-amber-300'
-          }`}
-          title="30 seviye ve üzeri (Dereceli maçlara hazır) hesapları filtrele"
-        >
-          <span>🎯 30+ Level</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono">
-            {level30Count}
-          </span>
-        </button>
+        {/* 🎯 30+ Level Tag Butonu (Sadece LoL için) */}
+        {isLoL && (
+          <button
+            type="button"
+            onClick={() => setLevelFilter(levelFilter === '30+' ? '' : '30+')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              levelFilter === '30+'
+                ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                : 'bg-[#0a1322]/70 text-slate-400 border border-white/5 hover:border-amber-500/30 hover:text-amber-300'
+            }`}
+            title="30 seviye ve üzeri (Dereceli maçlara hazır) hesapları filtrele"
+          >
+            <span>🎯 30+ Level</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono">
+              {level30Count}
+            </span>
+          </button>
+        )}
 
         {/* Rank Seçici Dropdown */}
         <select
@@ -406,7 +480,13 @@ export default function AccountTable({
           <input
             id="search-accounts"
             type="text"
-            placeholder={t('search_placeholder')}
+            placeholder={
+              isAlbion
+                ? 'Albion karakteri, kullanıcı adı veya not ara...'
+                : isLoL
+                ? t('search_placeholder')
+                : 'Hesap, kullanıcı adı veya not ara...'
+            }
             className="w-full bg-[#0a1322]/90 border border-white/10 rounded-xl px-4 py-2.5 text-[#e8f0fe] font-sans text-sm outline-none transition-colors focus:border-blue-400 placeholder:text-slate-500 pr-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -575,6 +655,7 @@ export default function AccountTable({
                   onRankClick={setRankFilter}
                   onCategoryClick={setCategoryFilter}
                   onGameClick={setGameFilter}
+                  onEditClick={setEditingAccount}
                 />
               ))}
             </div>
@@ -592,6 +673,7 @@ export default function AccountTable({
                   onRankClick={setRankFilter}
                   onCategoryClick={setCategoryFilter}
                   onGameClick={setGameFilter}
+                  onEditClick={setEditingAccount}
                 />
               ))}
             </div>
@@ -609,6 +691,7 @@ export default function AccountTable({
                   onRankClick={setRankFilter}
                   onCategoryClick={setCategoryFilter}
                   onGameClick={setGameFilter}
+                  onEditClick={setEditingAccount}
                 />
               ))}
             </div>
@@ -650,7 +733,19 @@ export default function AccountTable({
                           onClick={() => setGameFilter(account.game || 'lol')}
                           className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer"
                         >
-                          {account.game === 'valorant' ? '🎯 VAL' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 OYUN' : '⚔️ LoL'}
+                          {account.game === 'albion'
+                            ? '🛡️ Albion'
+                            : account.game === 'valorant'
+                            ? '🎯 VAL'
+                            : account.game === 'tft'
+                            ? '♟️ TFT'
+                            : account.game === 'cs2'
+                            ? '🔫 CS2'
+                            : account.game === 'dota2'
+                            ? '🛡️ Dota2'
+                            : account.game === 'other'
+                            ? '🎮 OYUN'
+                            : '⚔️ LoL'}
                         </span>
                       </td>
                       <td className="px-4 py-2.5">
@@ -692,6 +787,14 @@ export default function AccountTable({
                           : t('never')}
                       </td>
                       <td className="px-4 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditingAccount(account)}
+                          className="text-amber-400 hover:text-amber-300 font-medium text-xs bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors mr-2 cursor-pointer inline-block"
+                          title="Hesabı Düzenle"
+                        >
+                          ✏️
+                        </button>
                         <Link
                           href={`/accounts/${account._id}`}
                           className="text-blue-400 hover:text-blue-300 font-medium text-xs bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors inline-block"
@@ -707,6 +810,18 @@ export default function AccountTable({
           )}
         </>
       )}
+
+      {/* ── 6. HESAP DÜZENLEME MODALI ── */}
+      <EditAccountModal
+        isOpen={!!editingAccount}
+        onClose={() => setEditingAccount(null)}
+        account={editingAccount}
+        categories={categories}
+        platformsList={platformsList}
+        onAccountUpdated={() => {
+          setEditingAccount(null);
+        }}
+      />
     </section>
   );
 }

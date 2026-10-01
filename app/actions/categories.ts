@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import dbConnect from '@/lib/db/mongoose';
 import Category, { ICategory } from '@/models/Category';
 import Account from '@/models/Account';
+import Setting from '@/models/Setting';
 
 export type CategoryData = ICategory & { _id: string };
 
@@ -16,21 +17,31 @@ const DEFAULT_CATEGORIES = [
 
 /**
  * Tüm kategorileri veritabanından çeker.
- * Eğer veritabanında hiç kategori yoksa varsayılan kategorileri oluşturur.
+ * Sadece ilk kurulumda hiç kategori yoksa varsayılanları oluşturur.
+ * Kullanıcı kategorileri sildikten sonra asla kendiliğinden tekrar oluşturmaz.
  */
 export async function getCategories(): Promise<CategoryData[]> {
   await dbConnect();
 
   let categories = await Category.find().sort({ createdAt: 1 }).lean<ICategory[]>();
 
-  if (categories.length === 0) {
+  const initSetting = await Setting.findOne({ key: 'CATEGORIES_INITIALIZED' }).lean();
+
+  if (categories.length === 0 && !initSetting) {
     try {
       for (const def of DEFAULT_CATEGORIES) {
         await Category.updateOne({ name: def.name }, { $setOnInsert: def }, { upsert: true });
       }
+      await Setting.create({ key: 'CATEGORIES_INITIALIZED', value: 'true' });
       categories = await Category.find().sort({ createdAt: 1 }).lean<ICategory[]>();
     } catch {
       // Ignore concurrent insertion race
+    }
+  } else if (!initSetting && categories.length > 0) {
+    try {
+      await Setting.create({ key: 'CATEGORIES_INITIALIZED', value: 'true' });
+    } catch {
+      // Ignore
     }
   }
 
@@ -103,6 +114,13 @@ export async function createCategory(
 export async function deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await dbConnect();
+    // Kullanıcı kategori sildiğinde otomatik varsayılan eklemenin yeniden tetiklenmesini engelle
+    await Setting.updateOne(
+      { key: 'CATEGORIES_INITIALIZED' },
+      { $set: { value: 'true' } },
+      { upsert: true }
+    );
+
     const category = await Category.findByIdAndDelete(id);
 
     if (!category) {

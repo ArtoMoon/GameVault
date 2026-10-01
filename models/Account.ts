@@ -35,6 +35,8 @@ export interface IAccount {
   platform: string;
   /** Profil ikonu numarası (DataDragon url'si için) */
   profileIconId?: number;
+  /** Harici avatar resim URL'si (Albion, Steam, vb.) */
+  avatarUrl?: string;
   /** Solo ve Flex rank detayları (Win/Loss dahil) */
   ranks?: PlayerRanks;
   /** Son oynanan maçların detaylı dökümü */
@@ -59,10 +61,9 @@ const AccountSchema = new Schema<IAccountDocument>(
   {
     riotId: {
       type: String,
-      required: [true, 'riotId zorunludur'],
+      required: [true, 'Hesap / Riot ID zorunludur'],
       unique: true,
       trim: true,
-      match: [/^.+#.+$/, 'riotId "GameName#TAG" formatında olmalıdır'],
     },
     username: {
       type: String,
@@ -109,6 +110,11 @@ const AccountSchema = new Schema<IAccountDocument>(
     profileIconId: {
       type: Number,
       default: 1,
+    },
+    avatarUrl: {
+      type: String,
+      default: '',
+      trim: true,
     },
     ranks: {
       type: Schema.Types.Mixed,

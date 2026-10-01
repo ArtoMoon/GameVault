@@ -25,6 +25,7 @@ import { getPuuidByRiotId } from '@/lib/riot/account';
 
 import { getDetailedRanksByPuuid, PlayerRanks } from '@/lib/riot/rank';
 import { getMatchHistoryDetails, MatchDetail } from '@/lib/riot/matches';
+import { fetchAlbionCharacter } from '@/lib/albion/api';
 
 /** Tek hesap senkronizasyon sonucu */
 export interface CheckResult {
@@ -50,17 +51,7 @@ export interface CheckResult {
 
 
 /**
- * Tek bir hesabın Riot API verilerini senkronize eder.
- *
- * Süreç:
- *  1. Summoner v4: level + summonerId + profileIconId çek (1 req)
- *  2. League v4: detaylı rank çek (1 req)
- *  3. Match v5: son 5 maç detayını çek (1 + 5 req)
- *  4. lastMatchId değiştiyse veya level ani artış varsa → status = "active"
- *  5. Tüm alanları MongoDB'de güncelle
- *
- * Rate-limit ağırlığı: ~8 istek / hesap
- * DB Mutasyonu: accounts koleksiyonunda tüm profil verileri güncellenir.
+ * Tek bir hesabın verilerini senkronize eder (Riot veya Albion).
  *
  * @param {string} id - MongoDB ObjectId (string)
  * @returns {Promise<CheckResult>} Senkronizasyon sonucu
@@ -75,6 +66,62 @@ export async function syncAccount(id: string): Promise<CheckResult> {
   }
 
   try {
+    const gameSlug = ((account as IAccount & { game?: string }).game || 'lol').toLowerCase();
+    const isRiotGame = ['lol', 'valorant', 'tft'].includes(gameSlug);
+
+    // Albion Online Karakter Senkronizasyonu
+    if (gameSlug === 'albion') {
+      const now = new Date();
+      const albionRes = await fetchAlbionCharacter(account.riotId, account.platform);
+
+      if (albionRes.success && albionRes.data) {
+        const d = albionRes.data;
+        const updates: Partial<IAccount> = {
+          summonerName: d.name,
+          rank: d.suggestedRank,
+          level: d.calculatedLevel,
+          puuid: d.id,
+          avatarUrl: d.avatarUrl,
+          lastCheckedAt: now,
+          status: 'available',
+        };
+
+        await Account.findByIdAndUpdate(id, updates);
+        revalidatePath('/');
+        revalidatePath(`/accounts/${id}`);
+        revalidatePath(`/platform/albion/albion`);
+
+        return {
+          riotId: account.riotId,
+          success: true,
+          message: `Albion API: ${d.formattedFame} Fame${d.guildName ? ' • ' + d.guildName : ''} güncellendi!`,
+          updatedAccount: updates,
+        };
+      }
+
+      await Account.findByIdAndUpdate(id, { lastCheckedAt: now });
+      return {
+        riotId: account.riotId,
+        success: true,
+        message: albionRes.error ? `Albion API: ${albionRes.error}` : 'Hesap kontrol edildi.',
+        updatedAccount: { lastCheckedAt: now },
+      };
+    }
+
+    // Diğer Riot dışı platformlar için Riot API çağrılmaz
+    if (!isRiotGame || !account.riotId.includes('#')) {
+      const now = new Date();
+      await Account.findByIdAndUpdate(id, { lastCheckedAt: now });
+      return {
+        riotId: account.riotId,
+        success: true,
+        message: `Hesap kontrol edildi.`,
+        updatedAccount: {
+          lastCheckedAt: now,
+        },
+      };
+    }
+
     const platform = ((account as IAccount & { platform?: string }).platform || 'TR1') as import('@/lib/riot/client').RiotPlatform;
 
     // PUUID geçerlilik kontrolü — 400 hatası alınırsa Account v1'den yeni PUUID çek

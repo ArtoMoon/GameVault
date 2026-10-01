@@ -14,6 +14,7 @@ import dbConnect from '@/lib/db/mongoose';
 import Account, { AccountStatus, IAccount } from '@/models/Account';
 import { getPuuidByRiotId } from '@/lib/riot/account';
 import { parseRiotId, sanitizeRiotId } from '@/lib/riot/utils';
+import { fetchAlbionCharacter, formatFame } from '@/lib/albion/api';
 
 /** Serializable hesap nesnesi (Mongoose Document olmayan) */
 export type AccountData = IAccount & { _id: string };
@@ -100,10 +101,12 @@ export async function getAccounts(
  */
 export async function addAccount(
   riotId: string,
-  platform = 'TR1',
+  platform?: string,
   username?: string,
   game = 'lol',
-  category = ''
+  category = '',
+  level?: number,
+  rank?: string
 ): Promise<{
   success: boolean;
   error?: string;
@@ -112,31 +115,104 @@ export async function addAccount(
   try {
     await dbConnect();
 
-    const cleanGame = (game || 'lol').toLowerCase();
+    const cleanGame = (game || 'lol').toLowerCase().trim();
     const cleanCategory = category ? category.trim() : '';
-
-    // Format doğrulama ve görünmez karakter temizleme
-    const { gameName, tagLine } = parseRiotId(riotId);
-    const normalizedRiotId = `${gameName}#${tagLine}`;
     const cleanUsername = username ? sanitizeRiotId(username) : '';
+    const isRiotGame = ['lol', 'valorant', 'tft'].includes(cleanGame);
+
+    let gameName = '';
+    let normalizedRiotId = '';
+    let puuid = '';
+
+    if (isRiotGame) {
+      const cleaned = sanitizeRiotId(riotId);
+      if (!cleaned.includes('#')) {
+        return {
+          success: false,
+          error: 'Riot oyunları için format: "GameName#TAG" (Örn: Faker#KR1) olmalıdır.',
+        };
+      }
+      const parsed = parseRiotId(cleaned);
+      gameName = parsed.gameName;
+      normalizedRiotId = `${parsed.gameName}#${parsed.tagLine}`;
+
+      // PUUID çek (account-v1)
+      const riotPlatform = (platform || 'TR1').toUpperCase();
+      try {
+        puuid = await getPuuidByRiotId(
+          parsed.gameName,
+          parsed.tagLine,
+          riotPlatform as import('@/lib/riot/client').RiotPlatform
+        );
+      } catch (apiErr) {
+        if (cleanGame === 'lol' || cleanGame === 'tft') {
+          throw apiErr;
+        }
+        puuid = '';
+      }
+    } else {
+      // Riot harici platformlar (Albion, Steam, Epic, vb.)
+      const cleaned = sanitizeRiotId(riotId);
+      if (!cleaned) {
+        return { success: false, error: 'Hesap / Karakter adı boş bırakılamaz.' };
+      }
+      gameName = cleaned;
+      normalizedRiotId = cleaned;
+      puuid = '';
+    }
+
+    const resolvedPlatform =
+      platform && platform.trim()
+        ? platform.trim()
+        : isRiotGame
+        ? 'TR1'
+        : cleanGame === 'albion'
+        ? 'Europe'
+        : 'Global';
+
+    let resolvedLevel =
+      level !== undefined && !isNaN(Number(level)) ? Math.max(0, Number(level)) : 1;
+    let resolvedRank = rank && rank.trim() ? rank.trim() : 'UNRANKED';
+    let autoNotes = '';
+    let resolvedAvatarUrl = '';
+
+    // Albion Online Karakter API Sorgusu
+    if (cleanGame === 'albion') {
+      try {
+        const albionRes = await fetchAlbionCharacter(normalizedRiotId, resolvedPlatform);
+        if (albionRes.success && albionRes.data) {
+          const d = albionRes.data;
+          puuid = d.id;
+          gameName = d.name;
+          normalizedRiotId = d.name; // Resmi büyük/küçük harf düzeni
+          resolvedAvatarUrl = d.avatarUrl;
+          if (!rank || !rank.trim()) {
+            resolvedRank = d.suggestedRank;
+          }
+          if (level === undefined || isNaN(Number(level))) {
+            resolvedLevel = d.calculatedLevel;
+          }
+          autoNotes = `[Albion API] Toplam Fame: ${d.formattedFame} | PvP: ${formatFame(d.killFame)} | PvE: ${formatFame(d.pveTotal)}${d.guildName ? ' | Guild: ' + d.guildName : ''}`;
+        }
+      } catch {
+        // API yanıt vermezse manuel verilerle devam et
+      }
+    }
 
     // Duplicate kontrolü
     const existing = await Account.findOne({
-      riotId: { $regex: new RegExp(`^${normalizedRiotId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      riotId: {
+        $regex: new RegExp(
+          `^${normalizedRiotId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+          'i'
+        ),
+      },
     }).lean();
     if (existing) {
-      return { success: false, error: `Bu hesap (${normalizedRiotId}) zaten kayıtlı.` };
-    }
-
-    // PUUID çek (account-v1)
-    let puuid = '';
-    try {
-      puuid = await getPuuidByRiotId(gameName, tagLine, platform as import('@/lib/riot/client').RiotPlatform);
-    } catch (apiErr) {
-      if (cleanGame === 'lol' || cleanGame === 'tft') {
-        throw apiErr;
-      }
-      puuid = '';
+      return {
+        success: false,
+        error: `Bu hesap (${normalizedRiotId}) zaten kayıtlı.`,
+      };
     }
 
     // Kaydet
@@ -145,13 +221,19 @@ export async function addAccount(
       username: cleanUsername,
       puuid,
       summonerName: gameName,
-      platform: platform.toUpperCase(),
+      platform: resolvedPlatform,
       status: 'available',
       game: cleanGame,
       category: cleanCategory,
+      level: resolvedLevel,
+      rank: resolvedRank,
+      avatarUrl: resolvedAvatarUrl || undefined,
+      notes: autoNotes || undefined,
+      lastCheckedAt: new Date(),
     });
 
     revalidatePath('/');
+    revalidatePath('/platform');
 
     return {
       success: true,
@@ -164,6 +246,155 @@ export async function addAccount(
     const message = err instanceof Error ? err.message : 'Bilinmeyen hata.';
     return { success: false, error: message };
   }
+}
+
+export interface UpdateAccountPayload {
+  riotId?: string;
+  username?: string;
+  platform?: string;
+  game?: string;
+  category?: string;
+  status?: AccountStatus;
+  level?: number;
+  rank?: string;
+  notes?: string;
+  avatarUrl?: string;
+}
+
+/**
+ * Hesabın tüm veya belirli alanlarını platforma göre günceller.
+ */
+export async function updateAccount(
+  id: string,
+  payload: UpdateAccountPayload
+): Promise<{ success: boolean; error?: string; account?: AccountData }> {
+  try {
+    await dbConnect();
+
+    const existing = await Account.findById(id);
+    if (!existing) {
+      return { success: false, error: 'Hesap bulunamadı.' };
+    }
+
+    const updates: Record<string, unknown> = {};
+
+    if (payload.riotId !== undefined) {
+      const cleanName = sanitizeRiotId(payload.riotId);
+      if (!cleanName) {
+        return { success: false, error: 'Hesap adı boş olamaz.' };
+      }
+      const dup = await Account.findOne({
+        _id: { $ne: id },
+        riotId: {
+          $regex: new RegExp(
+            `^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+            'i'
+          ),
+        },
+      }).lean();
+      if (dup) {
+        return {
+          success: false,
+          error: `"${cleanName}" adında başka bir hesap zaten mevcut.`,
+        };
+      }
+      updates.riotId = cleanName;
+      updates.summonerName = cleanName.includes('#')
+        ? cleanName.split('#')[0]
+        : cleanName;
+    }
+
+    if (payload.username !== undefined) {
+      updates.username = sanitizeRiotId(payload.username);
+    }
+
+    if (payload.platform !== undefined) {
+      updates.platform = payload.platform.trim();
+    }
+
+    if (payload.game !== undefined) {
+      updates.game = payload.game.toLowerCase().trim();
+    }
+
+    if (payload.category !== undefined) {
+      updates.category = payload.category.trim();
+    }
+
+    if (payload.status !== undefined) {
+      updates.status = payload.status;
+    }
+
+    if (payload.level !== undefined && !isNaN(Number(payload.level))) {
+      updates.level = Math.max(0, Number(payload.level));
+    }
+
+    if (payload.rank !== undefined) {
+      updates.rank = payload.rank.trim() || 'UNRANKED';
+    }
+
+    if (payload.notes !== undefined) {
+      updates.notes = payload.notes.trim();
+    }
+
+    if (payload.avatarUrl !== undefined) {
+      updates.avatarUrl = payload.avatarUrl.trim();
+    }
+
+    const updated = await Account.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    ).lean<IAccount>();
+
+    if (!updated) {
+      return { success: false, error: 'Hesap güncellenemedi.' };
+    }
+
+    revalidatePath('/');
+    revalidatePath('/platform');
+    revalidatePath(`/accounts/${id}`);
+
+    return {
+      success: true,
+      account: {
+        ...updated,
+        _id: String((updated as IAccount & { _id: unknown })._id),
+      } as AccountData,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Bilinmeyen hata.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Hesabın adını / Riot ID bilgisini günceller.
+ */
+export async function updateAccountName(
+  id: string,
+  name: string
+): Promise<{ success: boolean; error?: string }> {
+  return updateAccount(id, { riotId: name });
+}
+
+/**
+ * Hesabın seviyesini günceller.
+ */
+export async function updateAccountLevel(
+  id: string,
+  level: number
+): Promise<{ success: boolean; error?: string }> {
+  return updateAccount(id, { level });
+}
+
+/**
+ * Hesabın lig / rank bilgisini günceller.
+ */
+export async function updateAccountRank(
+  id: string,
+  rank: string
+): Promise<{ success: boolean; error?: string }> {
+  return updateAccount(id, { rank });
 }
 
 /**

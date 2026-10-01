@@ -1,6 +1,6 @@
 {
   "name": "mylol",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MyLoL League of Legends Alt-Account Dashboard",
   "author": "MyLoL",
   "main": "electron/main.cjs",

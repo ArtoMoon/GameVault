@@ -22,6 +22,7 @@ interface AccountCardProps {
   onRankClick?: (rank: string) => void;
   onCategoryClick?: (category: string) => void;
   onGameClick?: (game: string) => void;
+  onEditClick?: (account: AccountData) => void;
 }
 
 function getRankStyle(rank?: string, unrankedLabel?: string) {
@@ -172,6 +173,7 @@ export default function AccountCard({
   onRankClick,
   onCategoryClick,
   onGameClick,
+  onEditClick,
 }: AccountCardProps) {
   const { t, language } = useLanguage();
   const [isPending, startTransition] = useTransition();
@@ -220,15 +222,27 @@ export default function AccountCard({
         
         {/* Profile Avatar */}
         <div className="relative pl-2 shrink-0">
-          <div className="w-10 h-10 rounded-lg border border-white/15 bg-slate-800 overflow-hidden shadow-sm">
-            <Image 
-              src={ddragon.profileIcon(account.profileIconId || 1)} 
-              alt="Icon" 
-              width={40} 
-              height={40} 
-              unoptimized 
-              className="w-full h-full object-cover"
-            />
+          <div className="w-10 h-10 rounded-lg border border-white/15 bg-slate-800 overflow-hidden shadow-sm flex items-center justify-center">
+            {account.game === 'lol' ? (
+              <Image 
+                src={ddragon.profileIcon(account.profileIconId || 1)} 
+                alt="Icon" 
+                width={40} 
+                height={40} 
+                unoptimized 
+                className="w-full h-full object-cover"
+              />
+            ) : account.avatarUrl || account.game === 'albion' ? (
+              <img
+                src={account.avatarUrl || 'https://albion-log.com/avatars/male/AVATAR_07.webp'}
+                alt="Avatar"
+                className="w-full h-full object-cover scale-[2.2] transform origin-center"
+              />
+            ) : (
+              <span className="text-lg">
+                {account.game === 'valorant' ? '🎯' : account.game === 'tft' ? '♟️' : account.game === 'cs2' ? '🔫' : '🎮'}
+              </span>
+            )}
           </div>
           <span className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[8px] font-mono font-bold px-1 rounded border border-white/20">
             {account.level || 1}
@@ -295,6 +309,16 @@ export default function AccountCard({
           >
             <span className={isPending ? 'animate-spin-slow' : ''}>↻</span>
           </button>
+          {onEditClick && (
+            <button
+              type="button"
+              onClick={() => onEditClick(account)}
+              className="flex justify-center items-center bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 w-8 h-8 rounded-lg transition-all cursor-pointer text-xs"
+              title="Hesabı Düzenle"
+            >
+              ✏️
+            </button>
+          )}
           <Link 
             href={`/accounts/${account._id}`}
             className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-colors"
@@ -337,15 +361,33 @@ export default function AccountCard({
             
             {/* Avatar with level badge */}
             <div className="relative shrink-0">
-              <div className={`${isCompact ? 'w-10 h-10' : 'w-11 h-11'} rounded-xl border border-white/15 bg-slate-800 overflow-hidden shadow-md group-hover:border-amber-400/40 transition-colors`}>
-                <Image
-                  src={ddragon.profileIcon(account.profileIconId || 1)}
-                  alt="Avatar"
-                  width={44}
-                  height={44}
-                  unoptimized
-                  className="w-full h-full object-cover"
-                />
+              <div className={`${isCompact ? 'w-10 h-10' : 'w-11 h-11'} rounded-lg border border-white/15 bg-slate-900 overflow-hidden shadow-md group-hover:border-amber-400/40 transition-colors flex items-center justify-center`}>
+                {account.game === 'lol' ? (
+                  <Image
+                    src={ddragon.profileIcon(account.profileIconId || 1)}
+                    alt="Avatar"
+                    width={44}
+                    height={44}
+                    unoptimized
+                    className="w-full h-full object-cover"
+                  />
+                ) : account.avatarUrl || account.game === 'albion' ? (
+                  <img
+                    src={account.avatarUrl || 'https://albion-log.com/avatars/male/AVATAR_07.webp'}
+                    alt="Avatar"
+                    className="w-full h-full object-cover scale-[2.2] transform origin-center"
+                  />
+                ) : (
+                  <span className="text-xl">
+                    {account.game === 'valorant'
+                      ? '🎯'
+                      : account.game === 'tft'
+                      ? '♟️'
+                      : account.game === 'cs2'
+                      ? '🔫'
+                      : '🎮'}
+                  </span>
+                )}
               </div>
               <span className="absolute -bottom-1 -right-1 bg-black/90 text-white text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border border-white/20 shadow-xs leading-none">
                 {account.level || 1}
@@ -360,7 +402,19 @@ export default function AccountCard({
                   onClick={() => onGameClick?.(account.game || 'lol')}
                   className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer"
                 >
-                  {account.game === 'valorant' ? '🎯 VAL' : account.game === 'tft' ? '♟️ TFT' : account.game === 'other' ? '🎮 OYUN' : '⚔️ LoL'}
+                  {account.game === 'albion'
+                    ? '🛡️ Albion'
+                    : account.game === 'valorant'
+                    ? '🎯 VAL'
+                    : account.game === 'tft'
+                    ? '♟️ TFT'
+                    : account.game === 'cs2'
+                    ? '🔫 CS2'
+                    : account.game === 'dota2'
+                    ? '🛡️ Dota2'
+                    : account.game === 'other'
+                    ? '🎮 OYUN'
+                    : '⚔️ LoL'}
                 </span>
                 {account.category && (
                   <span
@@ -447,6 +501,17 @@ export default function AccountCard({
               <span className={isPending ? 'animate-spin-slow' : ''}>↻</span>
               <span className="text-[11px]">{isPending ? t('checking_btn') : t('check_btn')}</span>
             </button>
+
+            {onEditClick && (
+              <button
+                type="button"
+                onClick={() => onEditClick(account)}
+                className="h-7 w-7 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition-colors flex items-center justify-center cursor-pointer text-xs"
+                title="Hesabı Düzenle"
+              >
+                ✏️
+              </button>
+            )}
 
             <Link
               href={`/accounts/${account._id}`}

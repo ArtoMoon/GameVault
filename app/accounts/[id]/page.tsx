@@ -26,14 +26,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 import { getCategories } from '@/app/actions/categories';
+import { getPlatforms } from '@/app/actions/platforms';
 
 export default async function AccountDetailPage({ params }: PageProps) {
   const { id } = await params;
   await dbConnect();
 
-  const [raw, categories] = await Promise.all([
+  const [raw, categories, platforms] = await Promise.all([
     Account.findById(id).lean<IAccount & { _id: unknown }>(),
     getCategories(),
+    getPlatforms(),
   ]);
 
   if (!raw) {
@@ -56,7 +58,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
       <BackToDashboardLink />
 
-      <AccountDetailClient account={account} categories={categories} />
+      <AccountDetailClient
+        account={account}
+        categories={categories}
+        platforms={platforms}
+      />
     </div>
   );
 }

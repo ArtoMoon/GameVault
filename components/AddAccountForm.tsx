@@ -13,6 +13,7 @@ interface AddAccountFormProps {
   onCategoriesChange?: () => void;
   platformsList?: PlatformData[];
   defaultGame?: string;
+  onAccountAdded?: () => void;
 }
 
 export default function AddAccountForm({
@@ -20,6 +21,7 @@ export default function AddAccountForm({
   onCategoriesChange,
   platformsList = [],
   defaultGame,
+  onAccountAdded,
 }: AddAccountFormProps) {
   const { t } = useLanguage();
 
@@ -30,32 +32,50 @@ export default function AddAccountForm({
             p.games.map((g) => ({
               value: g.slug,
               label: `${g.icon || '🎮'} ${g.name} (${p.name})`,
+              platformSlug: p.slug,
+              gameName: g.name,
             }))
           ),
-          { value: 'other', label: '🎮 Diğer Oyunlar' },
+          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer' },
         ]
       : [
-          { value: 'lol', label: '⚔️ League of Legends' },
-          { value: 'valorant', label: '🎯 Valorant' },
-          { value: 'tft', label: '♟️ TFT' },
-          { value: 'other', label: '🎮 Diğer Oyunlar' },
+          { value: 'lol', label: '⚔️ League of Legends', platformSlug: 'riot', gameName: 'LoL' },
+          { value: 'valorant', label: '🎯 Valorant', platformSlug: 'riot', gameName: 'Valorant' },
+          { value: 'tft', label: '♟️ TFT', platformSlug: 'riot', gameName: 'TFT' },
+          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer' },
         ];
 
-  const platforms = [
-    { value: 'TR1',  label: t('platform_tr') || 'TR (Türkiye)' },
+  const riotPlatforms = [
+    { value: 'TR1', label: t('platform_tr') || 'TR (Türkiye)' },
     { value: 'EUW1', label: t('platform_euw') || 'EUW (Batı Avrupa)' },
     { value: 'EUN1', label: t('platform_eun') || 'EUNE (Kuzey-Doğu)' },
-    { value: 'NA1',  label: t('platform_na') || 'NA (Kuzey Amerika)' },
-    { value: 'KR',   label: t('platform_kr') || 'KR (Kore)' },
-    { value: 'BR1',  label: t('platform_br') || 'BR (Brezilya)' },
-    { value: 'RU',   label: t('platform_ru') || 'RU (Rusya)' },
+    { value: 'NA1', label: t('platform_na') || 'NA (Kuzey Amerika)' },
+    { value: 'KR', label: t('platform_kr') || 'KR (Kore)' },
+    { value: 'BR1', label: t('platform_br') || 'BR (Brezilya)' },
+    { value: 'RU', label: t('platform_ru') || 'RU (Rusya)' },
+  ];
+
+  const albionPlatforms = [
+    { value: 'Europe', label: '🇪🇺 Albion Europe (Avrupa)' },
+    { value: 'Americas', label: '🇺🇸 Albion Americas (Batı / Washington)' },
+    { value: 'Asia', label: '🌏 Albion Asia (Doğu / Singapur)' },
+    { value: 'Global', label: '🌐 Global' },
+  ];
+
+  const genericPlatforms = [
+    { value: 'Global', label: '🌐 Global' },
+    { value: 'Europe', label: '🇪🇺 Europe (Avrupa)' },
+    { value: 'North America', label: '🇺🇸 North America (Kuzey Amerika)' },
+    { value: 'Turkey', label: '🇹🇷 Türkiye' },
+    { value: 'Asia', label: '🌏 Asia' },
   ];
 
   const [game, setGame] = useState(defaultGame || dynamicGames[0]?.value || 'lol');
   const [category, setCategory] = useState('');
   const [riotId, setRiotId] = useState('');
   const [username, setUsername] = useState('');
-  const [platform, setPlatform] = useState('TR1');
+  const [customLevel, setCustomLevel] = useState('');
+  const [customRank, setCustomRank] = useState('');
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{
@@ -63,7 +83,47 @@ export default function AddAccountForm({
     text: string;
   } | null>(null);
 
-  const isRiotGame = ['lol', 'valorant', 'tft'].includes(game.toLowerCase());
+  const cleanGame = game.toLowerCase();
+  const isRiotGame = ['lol', 'valorant', 'tft'].includes(cleanGame);
+  const isAlbion = cleanGame === 'albion';
+
+  const currentPlatformOptions = isRiotGame
+    ? riotPlatforms
+    : isAlbion
+    ? albionPlatforms
+    : genericPlatforms;
+
+  const [platform, setPlatform] = useState(
+    isRiotGame ? 'TR1' : isAlbion ? 'Europe' : 'Global'
+  );
+
+  // defaultGame değişirse senkronize et
+  const [prevDefaultGame, setPrevDefaultGame] = useState(defaultGame);
+  if (defaultGame !== prevDefaultGame) {
+    setPrevDefaultGame(defaultGame);
+    if (defaultGame) {
+      setGame(defaultGame);
+      if (defaultGame.toLowerCase() === 'albion') {
+        setPlatform('Europe');
+      } else if (['lol', 'valorant', 'tft'].includes(defaultGame.toLowerCase())) {
+        setPlatform('TR1');
+      } else {
+        setPlatform('Global');
+      }
+    }
+  }
+
+  const handleGameSelect = (newGame: string) => {
+    setGame(newGame);
+    const gLower = newGame.toLowerCase();
+    if (gLower === 'albion') {
+      setPlatform('Europe');
+    } else if (['lol', 'valorant', 'tft'].includes(gLower)) {
+      setPlatform('TR1');
+    } else {
+      setPlatform('Global');
+    }
+  };
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,22 +133,41 @@ export default function AddAccountForm({
     const cleanedUsername = sanitizeRiotId(username);
 
     if (isRiotGame && !cleaned.includes('#')) {
-      setMessage({ type: 'error', text: 'Format: "GameName#TAG" (Örn: Faker#KR1)' });
+      setMessage({ type: 'error', text: 'Riot oyunları formatı: "GameName#TAG" (Örn: Faker#KR1)' });
       return;
     }
 
+    if (!cleaned) {
+      setMessage({ type: 'error', text: 'Hesap / Karakter adı boş bırakılamaz.' });
+      return;
+    }
+
+    const parsedLevel = customLevel ? parseInt(customLevel, 10) : undefined;
+
     startTransition(async () => {
-      const result = await addAccount(cleaned, platform, cleanedUsername, game, category);
+      const result = await addAccount(
+        cleaned,
+        platform,
+        cleanedUsername,
+        game,
+        category,
+        parsedLevel,
+        customRank.trim()
+      );
       if (result.success) {
         const displayName = result.account?.riotId ?? cleaned;
         const extra = cleanedUsername ? ` (${t('label_username')}: ${cleanedUsername})` : '';
         const catInfo = category ? ` [${category}]` : '';
+        const serverInfo = platform ? ` - ${platform}` : '';
         setMessage({
           type: 'success',
-          text: `✅ "${displayName}"${extra}${catInfo} eklendi!`,
+          text: `✅ "${displayName}"${serverInfo}${extra}${catInfo} başarıyla eklendi!`,
         });
         setRiotId('');
         setUsername('');
+        setCustomLevel('');
+        setCustomRank('');
+        onAccountAdded?.();
       } else {
         setMessage({ type: 'error', text: `❌ ${result.error}` });
       }
@@ -111,7 +190,7 @@ export default function AddAccountForm({
                   id="add-game"
                   className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none cursor-pointer transition-all appearance-none"
                   value={game}
-                  onChange={(e) => setGame(e.target.value)}
+                  onChange={(e) => handleGameSelect(e.target.value)}
                   disabled={isPending}
                 >
                   {dynamicGames.map((g) => (
@@ -159,10 +238,10 @@ export default function AddAccountForm({
               </div>
             </div>
 
-            {/* Bölge Seçici */}
+            {/* Bölge / Sunucu Seçici */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="add-platform" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <span>🌐</span> {t('label_region') || 'Bölge / Sunucu'}
+                <span>🌐</span> {isAlbion ? 'Albion Sunucusu' : t('label_region') || 'Bölge / Sunucu'}
               </label>
               <div className="relative">
                 <select
@@ -173,7 +252,7 @@ export default function AddAccountForm({
                   disabled={isPending}
                   aria-label={t('label_region')}
                 >
-                  {platforms.map((p) => (
+                  {currentPlatformOptions.map((p) => (
                     <option key={p.value} value={p.value} className="bg-[#0a1424] text-white">
                       {p.label}
                     </option>
@@ -184,12 +263,12 @@ export default function AddAccountForm({
             </div>
           </div>
 
-          {/* Alt Satır: Riot ID & Kullanıcı Adı & Kaydet Butonu */}
+          {/* Alt Satır: Hesap Adı & Kullanıcı Adı & (opsiyonel Level/Rank) & Kaydet Butonu */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-            {/* Riot ID Girişi */}
-            <div className="sm:col-span-6 flex flex-col gap-1.5">
+            {/* Hesap Adı Girişi */}
+            <div className={`${!isRiotGame ? 'sm:col-span-4' : 'sm:col-span-6'} flex flex-col gap-1.5`}>
               <label htmlFor="add-riot-id" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <span>⚡</span> {!isRiotGame ? 'Hesap / Oyuncu Adı' : t('label_riot_id')}
+                <span>⚡</span> {isAlbion ? 'Albion Karakter / Hesap Adı' : !isRiotGame ? 'Hesap / Oyuncu Adı' : t('label_riot_id')}
                 <span className="text-yellow-400/80 font-normal font-sans text-[10px] ml-1">
                   {isRiotGame && '(GameName#TAG)'}
                 </span>
@@ -198,7 +277,7 @@ export default function AddAccountForm({
                 id="add-riot-id"
                 type="text"
                 className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 focus:shadow-[0_0_15px_rgba(59,130,246,0.2)] rounded-xl px-4 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
-                placeholder={!isRiotGame ? 'Hesap Adı / Nickname' : t('placeholder_riot_id')}
+                placeholder={isAlbion ? 'Örn: AlbionHero' : !isRiotGame ? 'Hesap Adı / Nickname' : t('placeholder_riot_id')}
                 value={riotId}
                 onChange={(e) => setRiotId(e.target.value)}
                 disabled={isPending}
@@ -207,9 +286,9 @@ export default function AddAccountForm({
             </div>
 
             {/* Kullanıcı Adı (İstemci Girişi) */}
-            <div className="sm:col-span-4 flex flex-col gap-1.5">
+            <div className={`${!isRiotGame ? 'sm:col-span-3' : 'sm:col-span-4'} flex flex-col gap-1.5`}>
               <label htmlFor="add-username" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
-                <span>🔑</span> {t('label_username')}
+                <span>🔑</span> {t('label_username')} (İsteğe Bağlı)
               </label>
               <input
                 id="add-username"
@@ -221,6 +300,42 @@ export default function AddAccountForm({
                 disabled={isPending}
               />
             </div>
+
+            {/* Riot harici oyunlar için Seviye ve Rank girişleri */}
+            {!isRiotGame && (
+              <>
+                <div className="sm:col-span-1 flex flex-col gap-1.5">
+                  <label htmlFor="add-level" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
+                    <span>⚡</span> Level
+                  </label>
+                  <input
+                    id="add-level"
+                    type="number"
+                    min="0"
+                    className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                    placeholder="1"
+                    value={customLevel}
+                    onChange={(e) => setCustomLevel(e.target.value)}
+                    disabled={isPending}
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex flex-col gap-1.5">
+                  <label htmlFor="add-rank" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
+                    <span>🏆</span> {isAlbion ? 'Tier / Rank' : 'Rank / Lig'}
+                  </label>
+                  <input
+                    id="add-rank"
+                    type="text"
+                    className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                    placeholder={isAlbion ? 'Örn: Tier 8' : 'Örn: Gold'}
+                    value={customRank}
+                    onChange={(e) => setCustomRank(e.target.value)}
+                    disabled={isPending}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Kaydet Butonu */}
             <div className="sm:col-span-2">

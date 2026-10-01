@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AccountData } from '@/app/actions/accounts';
 import type { AccountStatus } from '@/models/Account';
 import { getCategories, CategoryData } from '@/app/actions/categories';
@@ -30,6 +31,7 @@ export default function GameAccountsView({
   initialAddOpen = false,
 }: GameAccountsViewProps) {
   const { t } = useLanguage();
+  const router = useRouter();
 
   const [statusFilter, setStatusFilter] = useState<AccountStatus | ''>('');
   const [platformFilter, setPlatformFilter] = useState<string>('');
@@ -194,6 +196,9 @@ export default function GameAccountsView({
             onCategoriesChange={refreshCategories}
             platformsList={initialPlatforms}
             defaultGame={currentGame.slug}
+            onAccountAdded={() => {
+              router.refresh();
+            }}
           />
         </div>
       )}
@@ -330,12 +335,14 @@ export default function GameAccountsView({
       <AccountTable
         accounts={scopedAccounts}
         categories={categories}
+        platformsList={initialPlatforms}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         platformFilter={platformFilter}
         onPlatformFilterChange={setPlatformFilter}
         categoryFilter={categoryFilter}
         onCategoryFilterChange={setCategoryFilter}
+        gameSlug={currentGame.slug}
       />
 
       {/* ── 7. KATEGORİ MODALI ── */}
