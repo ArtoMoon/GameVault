@@ -97,36 +97,6 @@ Welcome to **GameVault** (formerly MyLoL) — the all-new universal gaming dashb
 ### 📥 Download & Install:
 Download **\`GameVault-Setup-${version}.exe\`** from the **Assets** section below to install on Windows.`;
 
-#### 🛡️ 2. Albion Online Live API Integration
-- **API Key-Free Character Lookup:** Direct search and account creation powered by Albion Online's official public gameinfo/killboard infrastructure.
-- **Real-Time Statistics:** Automatically retrieves **Total Fame**, **PvP Kill Fame**, **PvE Fame**, **Guild**, and **Alliance** data.
-- **Smart Tier & Level Calculation:** Dynamic calculation of character levels and Tier rankings (Tier 3 - Tier 8) based on lifetime fame.
-- **Regional Server Support:** Full support for Europe (AMS), Americas (US), Asia (SGP), and Global server endpoints.
-
-#### 🎛️ 3. Platform & Game Presets with Custom Ordering
-- **Platform Presets:** Built-in ready templates for Albion Online, Riot Games, Steam, Epic Games, Battle.net, EA app, and Ubisoft Connect.
-- **Platform Management & Custom Ordering:** Easily customize platform titles, colors, icons, API engine types, reorder platforms dynamically, and restore defaults.
-
-#### 🖼️ 4. Authentic Character Portraits & Square Avatars
-- **In-Game Avatars:** Fetches real Albion character portrait assets (\`AVATAR_07\`, etc.) directly from game data.
-- **Square Frame Optimization:** Enhanced centered zoom and modern square frames eliminate circular borders and dark margins.
-
-#### ✏️ 5. Universal Platform-Aware Account Editing
-- **Comprehensive Edit Modal:** Edit account names, login usernames, platform/server, game, level, tier/rank, status, category, and personal notes from a single modal.
-- **Quick Action Buttons:** Added one-click **✏️ Edit** shortcuts across all card and table views.
-
-#### 🏷️ 6. Category Management Fixes
-- Prevented default categories (\`Main\`, \`Smurf\`, \`Dereceli\`, \`ARAM / Eğlence\`) from respawning when deleted. A persistent database flag now preserves user category removals.
-
-#### ↩️ 7. Navigation & UI Refinements
-- **Smart Back Navigation:** The back button now uses \`router.back()\` to return directly to the previous platform/game view.
-- **Visual Glitch Fixes:** Removed duplicate arrow icons (\`← ←\`) and resolved badge clipping in narrow profile headers.
-
----
-
-### 📥 Download & Install:
-Download **\`MyLoL-Setup-${version}.exe\`** from the **Assets** section below to install and run the ultra-fast lightweight desktop application on Windows.`;
-
   // 1. Check if release exists
   let release;
   const getRelRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`, {
