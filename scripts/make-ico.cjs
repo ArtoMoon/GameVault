@@ -31,7 +31,7 @@ async function generate() {
   try {
     const buf = await pngToIco(inputFiles);
     
-    // 1. electron/assets/icon.ico
+    
     fs.writeFileSync(path.join(assetsDir, 'icon.ico'), buf);
     
     // 2. build/icon.ico

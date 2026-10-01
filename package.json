@@ -1,8 +1,8 @@
 {
-  "name": "mylol",
+  "name": "gamevault",
   "version": "0.3.1",
-  "description": "MyLoL League of Legends Alt-Account Dashboard",
-  "author": "MyLoL",
+  "description": "GameVault – Universal Gaming Dashboard & Account Manager",
+  "author": "GameVault",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",

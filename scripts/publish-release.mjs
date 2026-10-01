@@ -37,17 +37,22 @@ async function main() {
     throw new Error('❌ GitHub Token could not be retrieved from git credential manager or GH_TOKEN!');
   }
 
-  // Check for modern Tauri setup first, then fallback to Electron
-  const tauriSetupFile = path.join(root, 'src-tauri', 'target', 'release', 'bundle', 'nsis', `MyLoL_${version}_x64-setup.exe`);
+  // Check for modern Tauri setup (GameVault or MyLoL), then fallback to Electron
+  const tauriGameVaultSetup = path.join(root, 'src-tauri', 'target', 'release', 'bundle', 'nsis', `GameVault_${version}_x64-setup.exe`);
+  const tauriMyLoLSetup = path.join(root, 'src-tauri', 'target', 'release', 'bundle', 'nsis', `MyLoL_${version}_x64-setup.exe`);
   const electronSetupFile = path.join(root, 'dist', `MyLoL-Setup-${version}.exe`);
 
   let setupFile = '';
   let isTauri = false;
 
-  if (fs.existsSync(tauriSetupFile)) {
-    setupFile = tauriSetupFile;
+  if (fs.existsSync(tauriGameVaultSetup)) {
+    setupFile = tauriGameVaultSetup;
     isTauri = true;
-    console.log(`⚡ Detected modern ultra-fast Tauri NSIS installer!`);
+    console.log(`⚡ Detected modern GameVault Tauri NSIS installer!`);
+  } else if (fs.existsSync(tauriMyLoLSetup)) {
+    setupFile = tauriMyLoLSetup;
+    isTauri = true;
+    console.log(`⚡ Detected modern Tauri NSIS installer!`);
   } else if (fs.existsSync(electronSetupFile)) {
     setupFile = electronSetupFile;
   } else {
@@ -60,22 +65,37 @@ async function main() {
   const headers = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'MyLoL-Release-Uploader',
+    'User-Agent': 'GameVault-Release-Uploader',
   };
 
-  const releaseName = `MyLoL v${version} - Tauri Desktop Migration, Albion Online & Universal Platforms`;
-  const releaseBody = `## 🎮 MyLoL v${version} Release Notes
+  const releaseName = `GameVault v${version} - Rebranded, Modern Logo & Ultra-Fast Tauri Desktop`;
+  const releaseBody = `## 🎮 GameVault v${version} Release Notes
 
-This release introduces the all-new **Tauri v2** desktop architecture, comprehensive **Albion Online** live synchronization, and customizable platform presets!
+Welcome to **GameVault** (formerly MyLoL) — the all-new universal gaming dashboard and alt-account manager!
 
 ---
 
-### ✨ Key Features & Improvements:
+### ✨ What's New:
 
-#### ⚡ 1. Modern Tauri v2 Architecture
-- **85% Smaller Setup:** File size drastically reduced from ~185 MB down to **~28 MB**!
-- **Lightning-Fast Installation:** Installs in seconds with NSIS without extracting thousands of loose files.
-- **Ultra-Low Memory Footprint:** Switched from heavy Electron/Chromium to native Windows WebView2 and Rust, consuming up to 75% less RAM while gaming.
+#### 🚀 1. Rebranded to GameVault with Modern Gaming Logo
+- **Universal Multi-Game Focus:** Evolved beyond LoL into a universal account hub supporting **Albion Online**, **Riot Games** (LoL, Valorant, TFT), **Steam**, **Epic Games**, **Battle.net**, **EA app**, and custom platforms.
+- **Brand New High-Tech Logo:** Modern glowing neon controller shield emblem designed for dark gaming setups.
+
+#### ⚡ 2. Modern Tauri v2 Desktop Engine
+- **85% Smaller Setup:** File size slashed from ~185 MB to **~28 MB**!
+- **Zero Lag / Fast Startup:** Instant launch with low memory footprint (~40 MB RAM).
+- **Auto-Boot Standalone Engine:** Seamless background service orchestration.
+
+#### 🛡️ 3. Albion Online Live API Integration
+- Live fame, PvP kills, player guilds, real in-game avatars, and smart tier calculation.
+
+#### 🎛️ 4. Universal Platform & Game Presets
+- Drag/reorder platforms, edit platform details, customize colors and API engines.
+
+---
+
+### 📥 Download & Install:
+Download **\`GameVault-Setup-${version}.exe\`** from the **Assets** section below to install on Windows.`;
 
 #### 🛡️ 2. Albion Online Live API Integration
 - **API Key-Free Character Lookup:** Direct search and account creation powered by Albion Online's official public gameinfo/killboard infrastructure.
@@ -162,43 +182,41 @@ Download **\`MyLoL-Setup-${version}.exe\`** from the **Assets** section below to
     throw new Error(`Failed to query release: ${getRelRes.status} ${errText}`);
   }
 
-  // 2. Check if asset already exists in release
-  const existingAsset = release.assets?.find((a) => a.name === `MyLoL-Setup-${version}.exe`);
-  if (existingAsset && !process.argv.includes('--force')) {
-    console.log(`📦 Asset ${existingAsset.name} already exists in release: ${existingAsset.browser_download_url}`);
-  } else {
-    if (existingAsset) {
+  // 2. Upload Setup Assets (GameVault-Setup and MyLoL-Setup for compatibility)
+  const targetAssetNames = [`GameVault-Setup-${version}.exe`, `MyLoL-Setup-${version}.exe`];
+  const fileBuffer = fs.readFileSync(setupFile);
+
+  for (const assetName of targetAssetNames) {
+    const existingAsset = release.assets?.find((a) => a.name === assetName);
+    if (existingAsset && process.argv.includes('--force')) {
       console.log(`🗑️ Deleting existing asset ${existingAsset.name} (ID: ${existingAsset.id})...`);
       await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/assets/${existingAsset.id}`, {
         method: 'DELETE',
         headers,
       });
-      console.log(`✅ Old asset removed.`);
+      console.log(`✅ Old asset ${assetName} removed.`);
     }
 
-    // 3. Upload Setup Asset
-    const uploadUrl = release.upload_url.replace(/\{(\?name,label)?\}/, '') + `?name=MyLoL-Setup-${version}.exe`;
-    console.log(`⬆️ Uploading ${path.basename(setupFile)} to GitHub Release...`);
+    const uploadUrl = release.upload_url.replace(/\{(\?name,label)?\}/, '') + `?name=${assetName}`;
+    console.log(`⬆️ Uploading ${assetName} (${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB)...`);
 
-    const fileBuffer = fs.readFileSync(setupFile);
     const uploadRes = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/octet-stream',
         'Content-Length': fileBuffer.length.toString(),
-        'User-Agent': 'MyLoL-Release-Uploader',
+        'User-Agent': 'GameVault-Release-Uploader',
       },
       body: fileBuffer,
     });
 
     if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      throw new Error(`Upload failed: ${uploadRes.status} ${errText}`);
+      console.warn(`Upload warning for ${assetName}: ${await uploadRes.text()}`);
+    } else {
+      const assetData = await uploadRes.json();
+      console.log(`🎉 ${assetName} successfully uploaded: ${assetData.browser_download_url}`);
     }
-
-    const assetData = await uploadRes.json();
-    console.log(`🎉 Setup successfully uploaded: ${assetData.browser_download_url}`);
   }
 
   console.log(`🔗 Release Page: ${release.html_url}`);

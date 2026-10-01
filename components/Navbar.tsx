@@ -28,14 +28,14 @@ export default function Navbar() {
             href="/" 
             className="flex items-center gap-2.5 transition-opacity hover:opacity-85 no-drag-region"
           >
-            <div className="w-8 h-8 rounded-lg overflow-hidden border border-yellow-500/40 shadow-[0_0_12px_rgba(234,179,8,0.3)] shrink-0 bg-[#050e18]">
-              <img src="/icon.png" alt="MyLoL Logo" className="w-full h-full object-cover" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)] shrink-0 bg-[#050e18]">
+              <img src="/logo.png" alt="GameVault Logo" className="w-full h-full object-cover" />
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-base font-black tracking-wider text-white">
-                MY<span className="text-yellow-500">LOL</span>
+                GAME<span className="text-cyan-400">VAULT</span>
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-500/15 text-blue-300 border border-blue-500/30">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
                 {t('client_badge')}
               </span>
