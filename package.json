@@ -10,15 +10,15 @@
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "node scripts/prepare-tauri.cjs && tauri dev",
+    "tauri:build": "node scripts/prepare-tauri.cjs && tauri build",
+    "release": "node scripts/publish-release.mjs --force",
+    "release:all": "yarn tauri:build && node scripts/publish-release.mjs --force",
     "electron:dev": "concurrently -k -s first -n \"NEXT,APP\" -c \"cyan,magenta\" \"cross-env PORT=3000 next dev\" \"wait-on http://127.0.0.1:3000 && electron .\"",
     "electron:build": "yarn build && electron-builder --win",
     "electron:build:setup": "yarn build && electron-builder --win nsis",
     "electron:build:portable": "yarn build && electron-builder --win portable",
-    "electron:build:dir": "yarn build && electron-builder --dir",
-    "release": "node scripts/publish-release.mjs",
-    "release:all": "yarn electron:build:setup && node scripts/publish-release.mjs"
+    "electron:build:dir": "yarn build && electron-builder --dir"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

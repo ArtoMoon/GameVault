@@ -100,6 +100,14 @@ function main() {
     console.log('[Build] ✓ public/ kopyalandı.');
   }
 
+  // 3. .env.local kopyala
+  const envLocalSrc = path.join(rootDir, '.env.local');
+  const envLocalDest = path.join(standaloneDir, '.env.local');
+  if (fs.existsSync(envLocalSrc)) {
+    fs.copyFileSync(envLocalSrc, envLocalDest);
+    console.log('[Build] ✓ .env.local kopyalandı.');
+  }
+
   // 3. Symlink/Junction dereferencing (Windows EPERM önleme)
   console.log('[Build] Symlink ve junction noktaları fiziksel dosyalara dönüştürülüyor...');
   dereferenceDirectory(standaloneDir);
