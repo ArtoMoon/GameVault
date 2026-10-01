@@ -47,14 +47,14 @@
   },
   "build": {
     "appId": "com.mylol.dashboard",
-    "productName": "MyLoL",
+    "productName": "GameVault",
     "directories": {
       "output": "dist"
     },
     "publish": {
       "provider": "github",
       "owner": "ArtoMoon",
-      "repo": "lolstock"
+      "repo": "GameVault"
     },
     "files": [
       "electron/**/*",

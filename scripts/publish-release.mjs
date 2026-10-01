@@ -27,7 +27,7 @@ async function main() {
   const tag = `v${version}`;
   
   const owner = 'ArtoMoon';
-  const repo = 'lolstock';
+  const repo = 'GameVault';
 
   console.log(`🚀 Starting GitHub 
      process for ${tag}...`);
