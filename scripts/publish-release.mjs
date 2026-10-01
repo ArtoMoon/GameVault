@@ -51,42 +51,42 @@ async function main() {
     'User-Agent': 'MyLoL-Release-Uploader',
   };
 
-  const releaseName = `MyLoL v${version} - Albion Online Entegrasyonu, Karakter Avatarı & Platform Düzenleme`;
-  const releaseBody = `## 🎮 MyLoL v${version} Yama Notları / Release Notes
+  const releaseName = `MyLoL v${version} - Albion Online Integration, Character Avatars & Universal Account Editing`;
+  const releaseBody = `## 🎮 MyLoL v${version} Release Notes
 
-Bu güncelleme ile MyLoL'e tam teşekküllü **Albion Online** desteği, canlı killboard API senkronizasyonu, orijinal oyun içi karakter portreleri ve platforma göre özelleştirilebilir hesap düzenleme paneli eklendi!
-
----
-
-### ✨ Yenilikler ve Geliştirmeler (Changelog):
-
-#### 🛡️ 1. Albion Online Canlı API Entegrasyonu
-- **API Anahtarsız Karakter Sorgulama:** Albion Online'ın resmi killboard altyapısı üzerinden karakter adı ile sorgulama desteği eklendi.
-- **Canlı İstatistikler:** Karakterin **Toplam Fame**, **PvP Kill Fame**, **PvE Fame**, **Guild (Lonca)** ve **Alliance** bilgileri otomatik olarak çekilir.
-- **Otomatik Seviye ve Tier Derecelendirmesi:** Toplam Fame miktarına göre hesaplanan Tier 3 - Tier 8 derecelendirmesi ve seviye hesaplaması entegre edildi.
-- **Bölge & Sunucu Desteği:** Albion için Europe (AMS), Americas (US), Asia (SGP) ve Global sunucu seçimleri eklendi.
-- **Hatasız Senkronizasyon:** Riot API çağrıları ayrıştırılarak Albion ve diğer harici oyunlarda oluşan hatalı ban/hata (\`error_checking\`) durumu tamamen ortadan kaldırıldı.
-
-#### 🖼️ 2. Gerçek Karakter Avatar & Profil Resmi
-- **Orijinal Albion Portresi:** Karakterin oyun içi avatar kimliği (\`AVATAR_07\` vb.) çekilerek orijinal portre görseli entegre edildi.
-- **Tam Kare Çerçeve:** Portrelerin köşeden köşeye tam kare oturması için optimize edilmiş ölçekleme ve modern çerçeve tasarımı uygulandı.
-- **Tüm Görünümlerde Aktif:** Hesap Detay sayfasının yanı sıra Izgara, Kompakt Izgara ve Liste görünümlerinde de karakter avatarı gösterilir.
-
-#### ✏️ 3. Platforma Göre Hesap Düzenleme (Universal Account Edit Modal)
-- **Tüm Alanları Düzenleme:** Hesap adı/karakter adı, giriş kullanıcı adı, platform/sunucu, seviye, lig/tier, durum, kategori ve notlar tek bir pencereden güncellenebilir.
-- **Hızlı Erişim:** Tüm kart ve tablo görünümlerine hızlı **✏️ Düzenle** butonları eklendi.
-
-#### 🏷️ 4. Kategori Yönetimi İyileştirmesi
-- Silinen varsayılan kategorilerin (\`Main\`, \`Smurf\`, \`Dereceli\`, \`ARAM / Eğlence\`) tekrar kendiliğinden oluşması (\`respawn\`) engellendi. Veritabanına kalıcı ayar bayrağı eklendi.
-
-#### ↩️ 5. Gezinme & Arayüz Düzeltmeleri
-- **Geri Gel Tuşu:** Hesap detay sayfasındaki geri dön butonu artık \`router.back()\` ile doğrudan geldiğiniz platform/oyun sayfasına geri döner.
-- **Görsel Düzeltmeler:** Çift ok (\`← ←\`) hatası ve rozetlerin taşarak kesilmesi giderildi.
+This release introduces comprehensive **Albion Online** support, live killboard API synchronization, authentic in-game character portraits, and platform-aware account management!
 
 ---
 
-### 📥 İndirme ve Kurulum / Download & Install:
-Aşağıdaki **Assets** bölümünden **\`MyLoL-Setup-${version}.exe\`** dosyasını indirerek doğrudan kurabilir ve güncel sürümü kullanabilirsiniz.`;
+### ✨ Key Features & Improvements:
+
+#### 🛡️ 1. Albion Online Live API Integration
+- **API Key-Free Character Lookup:** Direct search and account creation powered by Albion Online's official public gameinfo/killboard infrastructure.
+- **Real-Time Statistics:** Automatically retrieves **Total Fame**, **PvP Kill Fame**, **PvE Fame**, **Guild**, and **Alliance** data.
+- **Smart Tier & Level Calculation:** Dynamic calculation of character levels and Tier rankings (Tier 3 - Tier 8) based on lifetime fame.
+- **Regional Server Support:** Full support for Europe (AMS), Americas (US), Asia (SGP), and Global server endpoints.
+- **Protected Syncing:** Bypasses Riot API calls on non-Riot platforms, completely preventing false \`error_checking\` (banned/error) states.
+
+#### 🖼️ 2. Authentic Character Portraits & Square Avatars
+- **In-Game Avatars:** Fetches real Albion character portrait assets (\`AVATAR_07\`, etc.) directly from game data.
+- **Square Frame Optimization:** Enhanced centered zoom and modern square frames eliminate circular borders and dark margins.
+- **Visible Across All Views:** Profile portraits are seamlessly integrated into Account Details, Grid, Compact Grid, and List views.
+
+#### ✏️ 3. Universal Platform-Aware Account Editing
+- **Comprehensive Edit Modal:** Edit account names, login usernames, platform/server, game, level, tier/rank, status, category, and personal notes from a single modal.
+- **Quick Action Buttons:** Added one-click **✏️ Edit** shortcuts across all card and table views.
+
+#### 🏷️ 4. Category Management Fixes
+- Prevented default categories (\`Main\`, \`Smurf\`, \`Dereceli\`, \`ARAM / Eğlence\`) from respawning when deleted. A persistent database flag now preserves user category removals.
+
+#### ↩️ 5. Navigation & UI Refinements
+- **Smart Back Navigation:** The back button now uses \`router.back()\` to return directly to the previous platform/game view.
+- **Visual Glitch Fixes:** Removed duplicate arrow icons (\`← ←\`) and resolved badge clipping in narrow profile headers.
+
+---
+
+### 📥 Download & Install:
+Download **\`MyLoL-Setup-${version}.exe\`** from the **Assets** section below to install and run the application on Windows.`;
 
   // 1. Check if release exists
   let release;
