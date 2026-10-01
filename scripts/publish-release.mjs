@@ -83,6 +83,10 @@ This release introduces comprehensive **Albion Online** support, live killboard 
 - **Smart Back Navigation:** The back button now uses \`router.back()\` to return directly to the previous platform/game view.
 - **Visual Glitch Fixes:** Removed duplicate arrow icons (\`← ←\`) and resolved badge clipping in narrow profile headers.
 
+#### 🎛️ 6. Platform & Game Presets with Custom Ordering
+- **Platform Presets:** Built-in ready templates for Albion Online, Riot Games, Steam, Epic Games, Battle.net, EA app, and Ubisoft Connect.
+- **Platform Management & Custom Ordering:** Easily customize platform titles, colors, icons, API engine types, reorder platforms dynamically, and restore defaults.
+
 ---
 
 ### 📥 Download & Install:

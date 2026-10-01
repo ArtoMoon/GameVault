@@ -60,7 +60,7 @@ export default function Navbar() {
 
           {/* Platform Linki (Platform & Oyun Seçim Sayfası) */}
           <Link
-            href="/platform/riot"
+            href="/platform"
             className={`text-xs font-bold transition-all py-1 px-2.5 rounded-lg flex items-center gap-1.5 ${
               isPlatform
                 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.25)]'

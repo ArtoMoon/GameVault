@@ -17,6 +17,7 @@
 import { revalidatePath } from 'next/cache';
 import dbConnect from '@/lib/db/mongoose';
 import Account, { AccountStatus, IAccount } from '@/models/Account';
+import Platform from '@/models/Platform';
 import { getSummonerByPuuid } from '@/lib/riot/summoner';
 import { getRankByPuuid } from '@/lib/riot/rank';
 import { getLastMatchId } from '@/lib/riot/matches';
@@ -69,8 +70,20 @@ export async function syncAccount(id: string): Promise<CheckResult> {
     const gameSlug = ((account as IAccount & { game?: string }).game || 'lol').toLowerCase();
     const isRiotGame = ['lol', 'valorant', 'tft'].includes(gameSlug);
 
+    let isAlbion = gameSlug === 'albion' || gameSlug.includes('albion');
+    if (!isAlbion) {
+      const pDoc = await Platform.findOne({
+        $or: [
+          { 'games.slug': gameSlug, 'games.apiType': 'albion' },
+          { slug: gameSlug, apiType: 'albion' },
+          { 'games.slug': gameSlug, apiType: 'albion' },
+        ],
+      }).lean();
+      if (pDoc) isAlbion = true;
+    }
+
     // Albion Online Karakter Senkronizasyonu
-    if (gameSlug === 'albion') {
+    if (isAlbion) {
       const now = new Date();
       const albionRes = await fetchAlbionCharacter(account.riotId, account.platform);
 

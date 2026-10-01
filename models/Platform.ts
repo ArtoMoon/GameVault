@@ -1,10 +1,13 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
+export type PlatformApiType = 'albion' | 'riot' | 'steam' | 'manual';
+
 export interface IPlatformGame {
   slug: string;
   name: string;
   icon: string;
   description?: string;
+  apiType?: PlatformApiType;
 }
 
 export interface IPlatform {
@@ -20,8 +23,12 @@ export interface IPlatform {
   description?: string;
   /** Platforma ait oyunlar */
   games: IPlatformGame[];
+  /** Platform API şeması / veri çekme altyapısı */
+  apiType?: PlatformApiType;
   /** Varsayılan / Sistem platformu mu? */
   isDefault?: boolean;
+  /** Sıralama indeksi */
+  order?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -49,6 +56,11 @@ const PlatformGameSchema = new Schema<IPlatformGame>(
       type: String,
       default: '',
       trim: true,
+    },
+    apiType: {
+      type: String,
+      enum: ['albion', 'riot', 'steam', 'manual'],
+      default: 'manual',
     },
   },
   { _id: false }
@@ -92,6 +104,15 @@ const PlatformSchema = new Schema<IPlatformDocument>(
     isDefault: {
       type: Boolean,
       default: false,
+    },
+    order: {
+      type: Number,
+      default: 0,
+    },
+    apiType: {
+      type: String,
+      enum: ['albion', 'riot', 'steam', 'manual'],
+      default: 'manual',
     },
   },
   {

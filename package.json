@@ -9,6 +9,9 @@
     "build": "next build && node scripts/prepare-standalone.cjs",
     "start": "next start",
     "lint": "eslint",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "electron:dev": "concurrently -k -s first -n \"NEXT,APP\" -c \"cyan,magenta\" \"cross-env PORT=3000 next dev\" \"wait-on http://127.0.0.1:3000 && electron .\"",
     "electron:build": "yarn build && electron-builder --win",
     "electron:build:setup": "yarn build && electron-builder --win nsis",
@@ -18,6 +21,7 @@
     "release:all": "yarn electron:build:setup && node scripts/publish-release.mjs"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
     "mongoose": "^9.9.5",
     "next": "16.3.4",
     "react": "19.2.8",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

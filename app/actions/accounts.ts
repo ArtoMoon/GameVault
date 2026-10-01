@@ -12,6 +12,7 @@
 import { revalidatePath } from 'next/cache';
 import dbConnect from '@/lib/db/mongoose';
 import Account, { AccountStatus, IAccount } from '@/models/Account';
+import Platform from '@/models/Platform';
 import { getPuuidByRiotId } from '@/lib/riot/account';
 import { parseRiotId, sanitizeRiotId } from '@/lib/riot/utils';
 import { fetchAlbionCharacter, formatFame } from '@/lib/albion/api';
@@ -161,12 +162,24 @@ export async function addAccount(
       puuid = '';
     }
 
+    let isAlbion = cleanGame === 'albion' || cleanGame.includes('albion');
+    if (!isAlbion) {
+      const pDoc = await Platform.findOne({
+        $or: [
+          { 'games.slug': cleanGame, 'games.apiType': 'albion' },
+          { slug: cleanGame, apiType: 'albion' },
+          { 'games.slug': cleanGame, apiType: 'albion' },
+        ],
+      }).lean();
+      if (pDoc) isAlbion = true;
+    }
+
     const resolvedPlatform =
       platform && platform.trim()
         ? platform.trim()
         : isRiotGame
         ? 'TR1'
-        : cleanGame === 'albion'
+        : isAlbion
         ? 'Europe'
         : 'Global';
 
@@ -177,7 +190,7 @@ export async function addAccount(
     let resolvedAvatarUrl = '';
 
     // Albion Online Karakter API Sorgusu
-    if (cleanGame === 'albion') {
+    if (isAlbion) {
       try {
         const albionRes = await fetchAlbionCharacter(normalizedRiotId, resolvedPlatform);
         if (albionRes.success && albionRes.data) {

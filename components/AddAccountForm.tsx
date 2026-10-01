@@ -34,15 +34,23 @@ export default function AddAccountForm({
               label: `${g.icon || '🎮'} ${g.name} (${p.name})`,
               platformSlug: p.slug,
               gameName: g.name,
+              apiType:
+                g.apiType ||
+                p.apiType ||
+                (g.slug.includes('albion') || p.slug.includes('albion')
+                  ? 'albion'
+                  : ['lol', 'valorant', 'tft'].includes(g.slug.toLowerCase())
+                  ? 'riot'
+                  : 'manual'),
             }))
           ),
-          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer' },
+          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer', apiType: 'manual' },
         ]
       : [
-          { value: 'lol', label: '⚔️ League of Legends', platformSlug: 'riot', gameName: 'LoL' },
-          { value: 'valorant', label: '🎯 Valorant', platformSlug: 'riot', gameName: 'Valorant' },
-          { value: 'tft', label: '♟️ TFT', platformSlug: 'riot', gameName: 'TFT' },
-          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer' },
+          { value: 'lol', label: '⚔️ League of Legends', platformSlug: 'riot', gameName: 'LoL', apiType: 'riot' },
+          { value: 'valorant', label: '🎯 Valorant', platformSlug: 'riot', gameName: 'Valorant', apiType: 'riot' },
+          { value: 'tft', label: '♟️ TFT', platformSlug: 'riot', gameName: 'TFT', apiType: 'riot' },
+          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer', apiType: 'manual' },
         ];
 
   const riotPlatforms = [
@@ -83,9 +91,15 @@ export default function AddAccountForm({
     text: string;
   } | null>(null);
 
+  const selectedGameObj = dynamicGames.find((g) => g.value === game);
   const cleanGame = game.toLowerCase();
-  const isRiotGame = ['lol', 'valorant', 'tft'].includes(cleanGame);
-  const isAlbion = cleanGame === 'albion';
+  const isAlbion =
+    selectedGameObj?.apiType === 'albion' ||
+    cleanGame === 'albion' ||
+    cleanGame.includes('albion');
+  const isRiotGame =
+    selectedGameObj?.apiType === 'riot' ||
+    ['lol', 'valorant', 'tft'].includes(cleanGame);
 
   const currentPlatformOptions = isRiotGame
     ? riotPlatforms
@@ -103,7 +117,10 @@ export default function AddAccountForm({
     setPrevDefaultGame(defaultGame);
     if (defaultGame) {
       setGame(defaultGame);
-      if (defaultGame.toLowerCase() === 'albion') {
+      const isAlb =
+        defaultGame.toLowerCase() === 'albion' ||
+        defaultGame.toLowerCase().includes('albion');
+      if (isAlb) {
         setPlatform('Europe');
       } else if (['lol', 'valorant', 'tft'].includes(defaultGame.toLowerCase())) {
         setPlatform('TR1');
@@ -116,9 +133,10 @@ export default function AddAccountForm({
   const handleGameSelect = (newGame: string) => {
     setGame(newGame);
     const gLower = newGame.toLowerCase();
-    if (gLower === 'albion') {
+    const gObj = dynamicGames.find((d) => d.value === newGame);
+    if (gObj?.apiType === 'albion' || gLower === 'albion' || gLower.includes('albion')) {
       setPlatform('Europe');
-    } else if (['lol', 'valorant', 'tft'].includes(gLower)) {
+    } else if (gObj?.apiType === 'riot' || ['lol', 'valorant', 'tft'].includes(gLower)) {
       setPlatform('TR1');
     } else {
       setPlatform('Global');
