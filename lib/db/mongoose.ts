@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
-import { getAppDataDir } from '@/lib/db/sqlite';
+import { autoMigrateFromMongoIfNeeded, getAppDataDir } from '@/lib/db/sqlite';
 
 /**
  * Veritabanı Bağlantı ve Motor Yöneticisi (SQLite Varsayılan + Opsiyonel MongoDB).
@@ -101,6 +101,7 @@ export function getMongoUri(): string {
  */
 export default async function dbConnect(): Promise<typeof mongoose> {
   if (isSqliteMode()) {
+    await autoMigrateFromMongoIfNeeded(getMongoUri());
     return mongoose;
   }
 

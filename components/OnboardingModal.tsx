@@ -9,6 +9,7 @@ import {
   getMongoStatus,
   saveMongoUri,
   setDatabaseEngine,
+  migrateMongoToSqlite,
   MongoStatus,
 } from '@/app/actions/settings';
 import type { UpdateCheckResponse } from '@/app/api/update-check/route';
@@ -164,6 +165,27 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
     } else {
       setMongoStatus((prev) => (prev ? { ...prev, engine: 'mongodb' } : prev));
     }
+  };
+
+  // MongoDB'deki mevcut verileri Yerel SQLite'a taşı
+  const handleMigrateMongoToSqlite = () => {
+    setMongoFeedback(null);
+    const uriToUse = mongoInput.trim() || 'mongodb://localhost:27017/mylol';
+    startMongoTransition(async () => {
+      const res = await migrateMongoToSqlite(uriToUse);
+      if (res.success && res.counts) {
+        setMongoFeedback({
+          type: 'success',
+          message: `MongoDB'den ${res.counts.accounts} hesap, ${res.counts.platforms} platform, ${res.counts.categories} kategori ve ${res.counts.settings} ayar Yerel SQLite'a taşındı!`,
+        });
+        fetchAllStatus();
+      } else {
+        setMongoFeedback({
+          type: 'error',
+          message: res.error || 'MongoDB verileri taşınamadı.',
+        });
+      }
+    });
   };
 
   // MongoDB Test & Kaydet
@@ -607,11 +629,36 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
                   </div>
 
                   {mongoFeedback && (
-                    <div className="p-3 rounded-xl text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 flex items-center gap-2">
-                      <span>✅</span>
+                    <div
+                      className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+                        mongoFeedback.type === 'success'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-red-500/10 border-red-500/30 text-red-300'
+                      }`}
+                    >
+                      <span>{mongoFeedback.type === 'success' ? '✅' : '⚠️'}</span>
                       <span>{mongoFeedback.message}</span>
                     </div>
                   )}
+
+                  <div className="p-3.5 rounded-xl bg-white/[0.025] border border-white/[0.07] flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white">
+                        MongoDB&apos;deki Eski Verileri SQLite&apos;a Taşı
+                      </div>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        Yerel MongoDB (localhost:27017) içindeki tüm hesap, platform ve kategorileri tek tıkla SQLite&apos;a aktarır.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleMigrateMongoToSqlite}
+                      disabled={isMongoPending}
+                      className="btn btn-primary btn-sm shrink-0"
+                    >
+                      {isMongoPending ? 'Taşınıyor...' : '📥 MongoDB → SQLite Taşı'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3.5">

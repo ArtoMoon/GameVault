@@ -101,6 +101,7 @@ export function getSqlitePath(): string {
 
 declare global {
   var _sqliteDb: SqliteDatabase | undefined;
+  var _mongoToSqliteMigrated: boolean | undefined;
 }
 
 function getSqliteDb(): SqliteDatabase {
@@ -541,3 +542,118 @@ export function getSqliteStats(): { path: string; sizeKB: number; totalRecords: 
   }
   return { path: dbPath, sizeKB, totalRecords };
 }
+
+export interface MongoToSqliteResult {
+  accounts: number;
+  platforms: number;
+  categories: number;
+  settings: number;
+  total: number;
+}
+
+/**
+ * MongoDB üzerindeki tüm koleksiyonları (`accounts`, `platforms`, `categories`, `settings`)
+ * yerel SQLite veritabanına taşır (var olan kayıtları günceller / birleştirir).
+ */
+export async function importMongoCollectionsToSqlite(
+  mongoUri: string
+): Promise<MongoToSqliteResult> {
+  const mongoose = (await import('mongoose')).default;
+  const conn = await mongoose
+    .createConnection(mongoUri, {
+      serverSelectionTimeoutMS: 3000,
+    })
+    .asPromise();
+
+  const counts: MongoToSqliteResult = {
+    accounts: 0,
+    platforms: 0,
+    categories: 0,
+    settings: 0,
+    total: 0,
+  };
+
+  try {
+    const dbNames = Array.from(
+      new Set([conn.db?.databaseName, 'test', 'mylol', 'gamevault'].filter(Boolean) as string[])
+    );
+
+    const collections: CollectionName[] = ['accounts', 'platforms', 'categories', 'settings'];
+    for (const dbName of dbNames) {
+      const targetDb = conn.useDb(dbName).db;
+      if (!targetDb) continue;
+      for (const col of collections) {
+        try {
+          const docs = await targetDb.collection(col).find({}).toArray();
+          for (const raw of docs) {
+            const id = String(raw._id);
+            const clean: Record<string, unknown> = { ...raw, _id: id };
+            writeToSqlite(col, reviveDates(clean));
+            counts[col] += 1;
+            counts.total += 1;
+          }
+        } catch {
+          // Collection may not exist
+        }
+      }
+    }
+
+    // Kategoriler ve platformlar taşındıysa seed işaretlerini de ekle
+    if (counts.platforms > 0) {
+      writeToSqlite('settings', {
+        _id: 'seed-platforms',
+        key: 'platforms_seeded',
+        value: 'true',
+        updatedAt: new Date(),
+      });
+    }
+    if (counts.categories > 0) {
+      writeToSqlite('settings', {
+        _id: 'seed-categories',
+        key: 'CATEGORIES_INITIALIZED',
+        value: 'true',
+        updatedAt: new Date(),
+      });
+    }
+  } finally {
+    try {
+      await conn.close();
+    } catch {
+      // ignore
+    }
+  }
+
+  return counts;
+}
+
+/**
+ * Uygulama ilk kez SQLite modunda açıldığında (ve henüz hesap kaydı yokken),
+ * yerel MongoDB'de (`mongodb://localhost:27017/mylol`) veri varsa otomatik olarak
+ * SQLite'a aktarır.
+ */
+export async function autoMigrateFromMongoIfNeeded(mongoUri: string): Promise<void> {
+  if (global._mongoToSqliteMigrated) return;
+  global._mongoToSqliteMigrated = true;
+
+  const flagPath = path.join(getAppDataDir(), 'mongo-migrated.flag');
+  if (fs.existsSync(flagPath)) return;
+
+  try {
+    const existingAccounts = readAllFromSqlite('accounts');
+    if (existingAccounts.length > 0) {
+      fs.writeFileSync(flagPath, new Date().toISOString(), 'utf8');
+      return;
+    }
+
+    const res = await importMongoCollectionsToSqlite(mongoUri);
+    if (res.total > 0) {
+      console.log(
+        `[SQLite Migration] MongoDB'den ${res.accounts} hesap, ${res.platforms} platform, ${res.categories} kategori SQLite'a taşındı.`
+      );
+      fs.writeFileSync(flagPath, JSON.stringify(res, null, 2), 'utf8');
+    }
+  } catch {
+    // MongoDB çalışmıyorsa sessizce geç
+  }
+}
+

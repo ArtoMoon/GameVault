@@ -20,7 +20,11 @@ import dbConnect, {
   reconnectMongo,
   saveDbConfig,
 } from '@/lib/db/mongoose';
-import { getSqliteStats } from '@/lib/db/sqlite';
+import {
+  getSqliteStats,
+  importMongoCollectionsToSqlite,
+  MongoToSqliteResult,
+} from '@/lib/db/sqlite';
 import Setting from '@/models/Setting';
 
 const ENV_LOCAL_PATH = path.join(process.cwd(), '.env.local');
@@ -173,6 +177,29 @@ export async function setDatabaseEngine(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Veritabanı motoru değiştirilemedi.';
     return { success: false, error: msg };
+  }
+}
+
+/**
+ * MongoDB üzerindeki tüm verileri (hesaplar, platformlar, kategoriler, ayarlar)
+ * yerel SQLite veritabanına taşır ve aktif motoru SQLite yapar.
+ */
+export async function migrateMongoToSqlite(
+  customUri?: string
+): Promise<{ success: boolean; counts?: MongoToSqliteResult; error?: string }> {
+  const uriToUse = (customUri && customUri.trim()) || getMongoUri();
+  try {
+    const counts = await importMongoCollectionsToSqlite(uriToUse);
+    saveDbConfig({ engine: 'sqlite', mongoUri: uriToUse });
+    revalidatePath('/', 'layout');
+    revalidatePath('/platform');
+    return { success: true, counts };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'MongoDB verileri okunamadı.';
+    return {
+      success: false,
+      error: `MongoDB'den aktarım başarısız (${uriToUse}): ${msg}`,
+    };
   }
 }
 
