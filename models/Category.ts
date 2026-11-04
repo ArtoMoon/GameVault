@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createHybridModel } from '@/lib/db/hybridModel';
 
 export interface ICategory {
   /** Kategori adı (örn: "Main", "Smurf", "Dereceli", "ARAM") */
@@ -48,7 +49,9 @@ const CategorySchema = new Schema<ICategoryDocument>(
 );
 
 delete mongoose.models.Category;
-const Category: Model<ICategoryDocument> =
+const MongooseCategory: Model<ICategoryDocument> =
   mongoose.model<ICategoryDocument>('Category', CategorySchema);
+
+const Category = createHybridModel<ICategoryDocument>('categories', MongooseCategory);
 
 export default Category;

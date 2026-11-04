@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createHybridModel } from '@/lib/db/hybridModel';
 
 export type PlatformApiType = 'albion' | 'riot' | 'steam' | 'manual';
 
@@ -122,7 +123,9 @@ const PlatformSchema = new Schema<IPlatformDocument>(
 );
 
 delete mongoose.models.Platform;
-const Platform: Model<IPlatformDocument> =
+const MongoosePlatform: Model<IPlatformDocument> =
   mongoose.model<IPlatformDocument>('Platform', PlatformSchema);
+
+const Platform = createHybridModel<IPlatformDocument>('platforms', MongoosePlatform);
 
 export default Platform;

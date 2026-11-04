@@ -12,7 +12,15 @@
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
-import dbConnect, { getMongoUri, reconnectMongo } from '@/lib/db/mongoose';
+import { revalidatePath } from 'next/cache';
+import dbConnect, {
+  DbEngine,
+  getMongoUri,
+  isSqliteMode,
+  reconnectMongo,
+  saveDbConfig,
+} from '@/lib/db/mongoose';
+import { getSqliteStats } from '@/lib/db/sqlite';
 import Setting from '@/models/Setting';
 
 const ENV_LOCAL_PATH = path.join(process.cwd(), '.env.local');
@@ -25,9 +33,13 @@ export interface ApiKeyStatus {
 }
 
 export interface MongoStatus {
+  engine: DbEngine;
   connected: boolean;
   uri: string;
   maskedUri: string;
+  sqlitePath?: string;
+  sqliteSizeKB?: number;
+  sqliteRecords?: number;
   error?: string;
 }
 
@@ -78,11 +90,12 @@ export async function getApiKeyStatus(): Promise<ApiKeyStatus> {
 }
 
 /**
- * MongoDB bağlantı durumunu ve mevcut URI'yi döner.
+ * Veritabanı motoru durumunu (Yerel SQLite veya Opsiyonel MongoDB) döner.
  */
 export async function getMongoStatus(): Promise<MongoStatus> {
   const currentUri = getMongoUri();
-  
+  const sqliteStats = getSqliteStats();
+
   // Şifreyi maskele (mongodb://user:password@host... ise)
   let masked = currentUri;
   try {
@@ -93,22 +106,73 @@ export async function getMongoStatus(): Promise<MongoStatus> {
     masked = currentUri;
   }
 
+  if (isSqliteMode()) {
+    return {
+      engine: 'sqlite',
+      connected: true,
+      uri: currentUri,
+      maskedUri: sqliteStats.path,
+      sqlitePath: sqliteStats.path,
+      sqliteSizeKB: sqliteStats.sizeKB,
+      sqliteRecords: sqliteStats.totalRecords,
+    };
+  }
+
   try {
     await dbConnect();
     const isConnected = mongoose.connection.readyState === 1;
     return {
+      engine: 'mongodb',
       connected: isConnected,
       uri: currentUri,
       maskedUri: masked,
+      sqlitePath: sqliteStats.path,
+      sqliteSizeKB: sqliteStats.sizeKB,
+      sqliteRecords: sqliteStats.totalRecords,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Bağlantı kurulamadı.';
     return {
+      engine: 'mongodb',
       connected: false,
       uri: currentUri,
       maskedUri: masked,
+      sqlitePath: sqliteStats.path,
+      sqliteSizeKB: sqliteStats.sizeKB,
+      sqliteRecords: sqliteStats.totalRecords,
       error: msg,
     };
+  }
+}
+
+/**
+ * Veritabanı motorunu (`sqlite` veya `mongodb`) değiştirir.
+ */
+export async function setDatabaseEngine(
+  engine: DbEngine
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (engine === 'sqlite') {
+      saveDbConfig({ engine: 'sqlite' });
+      revalidatePath('/', 'layout');
+      return { success: true };
+    }
+
+    const uri = getMongoUri();
+    const check = await verifyMongoConnection(uri);
+    if (!check.valid) {
+      return {
+        success: false,
+        error: check.error || 'MongoDB sunucusuna bağlanılamadı. Önce geçerli bir URI kaydedin.',
+      };
+    }
+
+    await reconnectMongo(uri);
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Veritabanı motoru değiştirilemedi.';
+    return { success: false, error: msg };
   }
 }
 

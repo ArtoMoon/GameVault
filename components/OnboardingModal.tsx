@@ -8,6 +8,7 @@ import {
   ApiKeyStatus,
   getMongoStatus,
   saveMongoUri,
+  setDatabaseEngine,
   MongoStatus,
 } from '@/app/actions/settings';
 import type { UpdateCheckResponse } from '@/app/api/update-check/route';
@@ -115,8 +116,7 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
         }
 
         const seen = localStorage.getItem('mylol_onboarding_seen');
-        const needsSetup = !seen || !keyData?.hasKey || !mData?.connected;
-        if (needsSetup) {
+        if (!seen) {
           setIsOpen(true);
         }
       } catch {
@@ -146,6 +146,23 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
       }
     } catch {
       // Ignore
+    }
+  };
+
+  // Veritabanı motoru değiştir (SQLite <-> MongoDB)
+  const handleSelectEngine = (engine: 'sqlite' | 'mongodb') => {
+    setMongoFeedback(null);
+    if (engine === 'sqlite') {
+      startMongoTransition(async () => {
+        await setDatabaseEngine('sqlite');
+        setMongoFeedback({
+          type: 'success',
+          message: 'Yerel SQLite (Hızlı Mod) aktif edildi.',
+        });
+        fetchAllStatus();
+      });
+    } else {
+      setMongoStatus((prev) => (prev ? { ...prev, engine: 'mongodb' } : prev));
     }
   };
 
@@ -215,7 +232,7 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
 
   const steps: { id: 0 | 1 | 2; num: string; title: string; ready?: boolean }[] = [
     { id: 0, num: '01', title: 'GameVault' },
-    { id: 1, num: '02', title: 'MongoDB', ready: Boolean(mongoStatus?.connected) },
+    { id: 1, num: '02', title: 'Veritabanı', ready: Boolean(mongoStatus?.connected ?? true) },
     { id: 2, num: '03', title: 'Riot API', ready: Boolean(apiKeyStatus?.hasKey) },
   ];
 
@@ -357,32 +374,36 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-lg shrink-0">
-                      🍃
+                      ⚡
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-white truncate">
-                        {t('onboarding_mongo_step_title')}
+                        {mongoStatus?.engine === 'mongodb'
+                          ? 'MongoDB (Bulut / Harici)'
+                          : 'Yerel SQLite (Hızlı Depolama)'}
                       </div>
                       <div className="text-[11px] text-text-muted truncate mt-0.5">
-                        {mongoStatus?.connected
-                          ? t('onboarding_mongo_connected')
-                          : t('onboarding_mongo_not_connected')}
+                        {mongoStatus?.engine === 'mongodb'
+                          ? mongoStatus?.connected
+                            ? t('onboarding_mongo_connected')
+                            : t('onboarding_mongo_not_connected')
+                          : `Hazır • ${mongoStatus?.sqliteRecords ?? 0} kayıt (${mongoStatus?.sqliteSizeKB ?? 0} KB)`}
                       </div>
                     </div>
                   </div>
                   <span
                     className={`chip shrink-0 ${
-                      mongoStatus?.connected
+                      (mongoStatus?.connected ?? true)
                         ? '!bg-emerald-500/15 !border-emerald-500/30 !text-emerald-300'
                         : '!bg-amber-500/15 !border-amber-500/30 !text-amber-300'
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
-                        mongoStatus?.connected ? 'bg-emerald-400' : 'bg-amber-400'
+                        (mongoStatus?.connected ?? true) ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}
                     />
-                    {mongoStatus?.connected ? 'OK' : 'Setup'}
+                    {mongoStatus?.engine === 'mongodb' ? 'Mongo' : 'SQLite'}
                   </span>
                 </button>
 
@@ -477,7 +498,7 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
                       <div className="text-xs font-bold text-white flex items-center gap-2">
                         <span>GameVault</span>
                         <span className="chip !h-5 !px-2 font-mono">
-                          v{updateInfo?.currentVersion || '0.4.0'}
+                          v{updateInfo?.currentVersion || '0.4.1'}
                         </span>
                       </div>
                       <p className="text-[11px] text-text-muted mt-1">
@@ -528,98 +549,129 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
             </div>
           )}
 
-          {/* 🍃 ADIM 1: MONGODB BAĞLANTI KURULUMU */}
+          {/* ⚡ ADIM 1: VERİTABANI MOTORU (YEREL SQLITE VARSAYILAN + OPSİYONEL MONGODB) */}
           {step === 1 && (
             <div className="card p-5 space-y-4 animate-fade-up">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-lg shrink-0">
-                    🍃
+                    ⚡
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-white">
-                      {t('onboarding_mongo_step_title')}
+                      Veritabanı Motoru Seçimi
                     </h3>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      {t('onboarding_mongo_step_desc')}
+                      Varsayılan olarak kurulum gerektirmeyen ultra hızlı <b>Yerel SQLite</b> kullanılır. İsterseniz opsiyonel olarak MongoDB bağlayabilirsiniz.
                     </p>
                   </div>
                 </div>
 
-                {mongoStatus && (
-                  <div
-                    className={`chip shrink-0 ${
-                      mongoStatus.connected
-                        ? '!bg-emerald-500/15 !border-emerald-500/30 !text-emerald-300'
-                        : '!bg-red-500/15 !border-red-500/30 !text-red-300'
-                    }`}
+                <div className="segmented">
+                  <button
+                    type="button"
+                    data-active={(mongoStatus?.engine || 'sqlite') === 'sqlite'}
+                    onClick={() => handleSelectEngine('sqlite')}
                   >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        mongoStatus.connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
-                      }`}
-                    />
-                    <span>
-                      {mongoStatus.connected
-                        ? t('onboarding_mongo_connected')
-                        : t('onboarding_mongo_not_connected')}
-                    </span>
-                  </div>
-                )}
+                    ⚡ Yerel SQLite (Önerilen)
+                  </button>
+                  <button
+                    type="button"
+                    data-active={mongoStatus?.engine === 'mongodb'}
+                    onClick={() => handleSelectEngine('mongodb')}
+                  >
+                    🍃 MongoDB (Opsiyonel)
+                  </button>
+                </div>
               </div>
 
               <div className="divider" />
 
-              {/* Input ve Test Butonu */}
-              <div className="space-y-3.5">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="label !mb-0">
-                      {t('onboarding_mongo_input_label')}
-                    </label>
-                    <span className="text-[11px] text-text-muted font-mono">
-                      mongodb://localhost:27017/mylol
-                    </span>
+              {(mongoStatus?.engine || 'sqlite') === 'sqlite' ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-emerald-500/[0.07] border border-emerald-500/25 flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <div className="text-xs font-bold text-emerald-300 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Yerel SQLite (WAL Modu) Aktif — Sıfır Kurulum</span>
+                      </div>
+                      <p className="text-[11px] text-text-secondary">
+                        Tüm hesaplarınız, platformlarınız ve ayarlarınız bilgisayarınızda tek bir hızlı SQLite dosyasında güvenle saklanır. Ekstra servis kurmanıza gerek yoktur.
+                      </p>
+                      {mongoStatus?.sqlitePath && (
+                        <div className="text-[10px] font-mono text-text-muted truncate pt-1">
+                          📁 {mongoStatus.sqlitePath} ({mongoStatus.sqliteSizeKB ?? 0} KB • {mongoStatus.sqliteRecords ?? 0} kayıt)
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    placeholder={t('onboarding_mongo_placeholder')}
-                    value={mongoInput}
-                    onChange={(e) => setMongoInput(e.target.value)}
-                    className="input font-mono"
-                  />
-                </div>
 
-                {/* Geri Bildirim Mesajı */}
-                {mongoFeedback && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 animate-fade-in ${
-                      mongoFeedback.type === 'success'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                        : 'bg-red-500/10 border-red-500/30 text-red-300'
-                    }`}
-                  >
-                    <span>{mongoFeedback.type === 'success' ? '✅' : '⚠️'}</span>
-                    <span>{mongoFeedback.message}</span>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSaveAndTestMongo}
-                  disabled={isMongoPending}
-                  className="btn btn-primary w-full !h-10"
-                >
-                  {isMongoPending ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>{t('onboarding_testing')}</span>
-                    </>
-                  ) : (
-                    <span>{t('onboarding_mongo_test_btn')}</span>
+                  {mongoFeedback && (
+                    <div className="p-3 rounded-xl text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 flex items-center gap-2">
+                      <span>✅</span>
+                      <span>{mongoFeedback.message}</span>
+                    </div>
                   )}
-                </button>
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="label !mb-0">
+                        {t('onboarding_mongo_input_label')} (Opsiyonel)
+                      </label>
+                      <span className="text-[11px] text-text-muted font-mono">
+                        mongodb://localhost:27017/mylol
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder={t('onboarding_mongo_placeholder')}
+                      value={mongoInput}
+                      onChange={(e) => setMongoInput(e.target.value)}
+                      className="input font-mono"
+                    />
+                  </div>
+
+                  {mongoFeedback && (
+                    <div
+                      className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 animate-fade-in ${
+                        mongoFeedback.type === 'success'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-red-500/10 border-red-500/30 text-red-300'
+                      }`}
+                    >
+                      <span>{mongoFeedback.type === 'success' ? '✅' : '⚠️'}</span>
+                      <span>{mongoFeedback.message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectEngine('sqlite')}
+                      className="btn btn-secondary !h-10"
+                    >
+                      ⚡ Yerel SQLite&apos;a Dön
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveAndTestMongo}
+                      disabled={isMongoPending}
+                      className="btn btn-primary flex-1 !h-10"
+                    >
+                      {isMongoPending ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>{t('onboarding_testing')}</span>
+                        </>
+                      ) : (
+                        <span>{t('onboarding_mongo_test_btn')}</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

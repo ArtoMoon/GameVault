@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createHybridModel } from '@/lib/db/hybridModel';
 import type { PlayerRanks } from '@/lib/riot/rank';
 import type { MatchDetail } from '@/lib/riot/matches';
 
@@ -167,7 +168,9 @@ AccountSchema.index({ lastCheckedAt: 1 });
  * Schema değişikliklerinin hemen devreye girmesi için cache temizlenir.
  */
 delete mongoose.models.Account;
-const Account: Model<IAccountDocument> =
+const MongooseAccount: Model<IAccountDocument> =
   mongoose.model<IAccountDocument>('Account', AccountSchema);
+
+const Account = createHybridModel<IAccountDocument>('accounts', MongooseAccount);
 
 export default Account;

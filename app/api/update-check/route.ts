@@ -48,7 +48,7 @@ function isNewerVersion(latest: string, current: string): boolean {
  * @returns {Promise<NextResponse<UpdateCheckResponse>>}
  */
 export async function GET(): Promise<NextResponse<UpdateCheckResponse>> {
-  const currentVersion = pkg.version || '0.4.0';
+  const currentVersion = pkg.version || '0.4.1';
 
   try {
     const res = await fetch(GITHUB_LATEST_URL, {

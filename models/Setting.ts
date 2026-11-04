@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createHybridModel } from '@/lib/db/hybridModel';
 
 export interface ISetting extends Document {
   key: string;
@@ -25,6 +26,9 @@ const SettingSchema = new Schema<ISetting>(
   }
 );
 
-const Setting = mongoose.models.Setting || mongoose.model<ISetting>('Setting', SettingSchema);
+const MongooseSetting: Model<ISetting> =
+  mongoose.models.Setting || mongoose.model<ISetting>('Setting', SettingSchema);
+
+const Setting = createHybridModel<ISetting>('settings', MongooseSetting);
 
 export default Setting;
