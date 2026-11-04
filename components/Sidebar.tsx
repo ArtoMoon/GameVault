@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PlatformData } from '@/app/actions/platforms';
 import type { UpdateCheckResponse } from '@/app/api/update-check/route';
-import { openExternalUrl } from '@/lib/desktop';
+import { installAppUpdate } from '@/lib/desktop';
 
 const COLLAPSE_KEY = 'gamevault_sidebar_collapsed';
 
@@ -34,6 +34,7 @@ export default function Sidebar({ platforms }: SidebarProps) {
     }
   });
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -158,7 +159,11 @@ export default function Sidebar({ platforms }: SidebarProps) {
         {updateInfo?.hasUpdate && (
           <button
             type="button"
-            onClick={() => openExternalUrl(updateInfo.downloadUrl || updateInfo.releaseUrl)}
+            disabled={isUpdating}
+            onClick={() => {
+              setIsUpdating(true);
+              installAppUpdate(updateInfo.downloadUrl || updateInfo.releaseUrl);
+            }}
             title={`${t('update_available')}: v${updateInfo.latestVersion}`}
             className={`w-full flex items-center gap-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-accent-500/25 via-accent-500/15 to-glow-500/20 border border-accent-400/40 hover:border-accent-300/70 shadow-[0_0_24px_-6px_rgba(139,92,246,0.6)] transition-all cursor-pointer animate-fade-in ${
               collapsed ? 'justify-center h-10' : 'px-3 py-2.5 justify-between'
@@ -173,7 +178,7 @@ export default function Sidebar({ platforms }: SidebarProps) {
               {!collapsed && (
                 <span className="min-w-0 text-left">
                   <span className="block text-[11px] font-bold leading-tight text-white truncate">
-                    {t('update_available')}
+                    {isUpdating ? 'İndiriliyor & Kuruluyor...' : t('update_available')}
                   </span>
                   <span className="block text-[10px] font-mono text-accent-300 leading-tight">
                     v{updateInfo.currentVersion} → v{updateInfo.latestVersion}
@@ -183,7 +188,7 @@ export default function Sidebar({ platforms }: SidebarProps) {
             </span>
             {!collapsed && (
               <span className="px-2 py-1 rounded-lg text-[11px] font-bold bg-accent-500 text-white shrink-0">
-                {t('update_btn')}
+                {isUpdating ? '...' : t('update_btn')}
               </span>
             )}
           </button>

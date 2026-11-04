@@ -93,3 +93,20 @@ export async function openExternalUrl(url: string): Promise<void> {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
+
+/**
+ * Yeni sürüm kurulum dosyasını (.exe) indirip otomatik başlatır
+ * ve mevcut masaüstü uygulamasını kapatır.
+ */
+export async function installAppUpdate(downloadUrl: string): Promise<void> {
+  const invoke = getTauriInvoke();
+  if (invoke) {
+    try {
+      await invoke('download_and_install_update', { downloadUrl });
+      return;
+    } catch {
+      // fallback to opening URL
+    }
+  }
+  await openExternalUrl(downloadUrl);
+}

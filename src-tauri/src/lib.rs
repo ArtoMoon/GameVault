@@ -4,14 +4,14 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU16, Ordering},
     Arc, Mutex,
 };
 use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
+    AppHandle, Manager, Url, WindowEvent,
 };
 
 #[cfg(target_os = "windows")]
@@ -45,6 +45,64 @@ impl Default for DesktopPrefs {
 struct DesktopState {
     close_to_tray: AtomicBool,
     prefs_path: PathBuf,
+    server_port: AtomicU16,
+}
+
+#[tauri::command]
+fn get_server_url(state: tauri::State<'_, DesktopState>) -> Option<String> {
+    let port = state.server_port.load(Ordering::Relaxed);
+    if port == 0 {
+        return None;
+    }
+    if is_gamevault_server(port) {
+        Some(format!("http://127.0.0.1:{port}"))
+    } else {
+        None
+    }
+}
+
+/// İndirilen yeni kurulum dosyasını (.exe) `%TEMP%` dizinine indirip
+/// doğrudan başlatır ve mevcut uygulamayı kapatır.
+#[tauri::command]
+fn download_and_install_update(app: AppHandle, download_url: String) -> Result<String, String> {
+    if !download_url.starts_with("https://") && !download_url.starts_with("http://") {
+        return Err("Geçersiz indirme adresi.".into());
+    }
+
+    let installer_path = std::env::temp_dir().join("GameVault-Update-Setup.exe");
+
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let ps_script = format!(
+            "$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '{}' -OutFile '{}' -UseBasicParsing; Start-Process -FilePath '{}'",
+            download_url.replace('\'', "''"),
+            installer_path.display().to_string().replace('\'', "''"),
+            installer_path.display().to_string().replace('\'', "''")
+        );
+        Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                &ps_script,
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Güncelleyici başlatılamadı: {e}"))?;
+    }
+
+    // Kısa gecikmeyle mevcut uygulamayı kapat ki kurulum dosyası üzerine yazabilsin
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(2500));
+        app.exit(0);
+    });
+
+    Ok(installer_path.display().to_string())
 }
 
 fn load_prefs(path: &PathBuf) -> DesktopPrefs {
@@ -236,7 +294,8 @@ fn is_gamevault_server(port: u16) -> bool {
     let mut buf = Vec::new();
     let _ = stream.take(8192).read_to_end(&mut buf);
     let body = String::from_utf8_lossy(&buf);
-    body.starts_with("HTTP/1.1 200") && body.contains("\"app\":\"gamevault\"")
+    (body.starts_with("HTTP/1.1 200") || body.starts_with("HTTP/1.0 200"))
+        && body.contains("\"gamevault\"")
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -249,7 +308,9 @@ pub fn run() {
             get_close_to_tray,
             set_close_to_tray,
             hide_to_tray,
-            open_external_url
+            open_external_url,
+            get_server_url,
+            download_and_install_update
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -270,9 +331,17 @@ pub fn run() {
                 .unwrap_or_else(|_| std::env::temp_dir())
                 .join("desktop-prefs.json");
             let prefs = load_prefs(&prefs_path);
+
+            let port = if cfg!(debug_assertions) {
+                3000
+            } else {
+                find_free_port()
+            };
+
             app.manage(DesktopState {
                 close_to_tray: AtomicBool::new(prefs.close_to_tray),
                 prefs_path,
+                server_port: AtomicU16::new(port),
             });
 
             if let Err(e) = setup_tray(app) {
@@ -291,7 +360,6 @@ pub fn run() {
 
             // Üretim (Release) modunda Next.js standalone sunucusunu
             // kendine ait boş bir portta arka planda başlat.
-            let port = find_free_port();
 
             if let Some((node_exe, standalone_dir)) = find_runtime_paths(app) {
                 let server_js = standalone_dir.join("server.js");
@@ -330,6 +398,9 @@ pub fn run() {
                     std::thread::sleep(Duration::from_millis(300));
                     if is_gamevault_server(port) {
                         if let Some(window) = app_handle.get_webview_window("main") {
+                            if let Ok(parsed) = Url::parse(&url) {
+                                let _ = window.navigate(parsed);
+                            }
                             let _ = window.eval(&format!("window.location.replace('{url}')"));
                         }
                         return;

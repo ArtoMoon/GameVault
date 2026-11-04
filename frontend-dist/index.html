@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GameVault – Başlatılıyor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at 50% 30%, #17153a 0%, #090b14 100%);
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .logo-container {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-glow {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 28px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.45) 0%, rgba(139, 92, 246, 0.2) 70%, transparent 100%);
+      filter: blur(16px);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    .logo-img {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      border-radius: 22px;
+      object-fit: cover;
+      box-shadow: 0 12px 35px rgba(6, 182, 212, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 30%, #38bdf8 70%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .status-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      backdrop-filter: blur(16px);
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .status-text {
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <img src="logo.png" alt="GameVault" class="logo-img" onerror="this.style.display='none'">
+    </div>
+    <div class="brand">
+      <div class="title">GameVault</div>
+      <div class="subtitle">Universal Gaming Dashboard</div>
+    </div>
+    <div class="status-box">
+      <div class="spinner"></div>
+      <div class="status-text" id="status">Kasa açılıyor...</div>
+    </div>
+  </div>
+
+  <script>
+    let redirected = false;
+
+    function navigateTo(url) {
+      if (redirected || !url) return;
+      redirected = true;
+      document.getElementById('status').innerText = 'Bağlantı kuruldu, yükleniyor...';
+      window.location.replace(url);
+    }
+
+    async function pollServer() {
+      if (redirected) return;
+      try {
+        if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+          const url = await window.__TAURI__.core.invoke('get_server_url');
+          if (url) {
+            navigateTo(url);
+            return;
+          }
+        } else {
+          // Tauri IPC henüz hazır değilse varsayılan portu doğrudan kontrol et
+          const res = await fetch('http://127.0.0.1:47310/api/health', { cache: 'no-store' });
+          if (res.ok) {
+            navigateTo('http://127.0.0.1:47310');
+            return;
+          }
+        }
+      } catch (e) {
+        // Sunucu hazırlanıyor
+      }
+      setTimeout(pollServer, 300);
+    }
+
+    window.__gamevaultFailed = function () {
+      document.querySelector('.spinner').style.display = 'none';
+      document.getElementById('status').innerText =
+        'Sunucu başlatılamadı. Uygulamayı yeniden başlatmayı deneyin.';
+    };
+
+    setTimeout(pollServer, 250);
+  </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ import {
   setCloseToTrayPref,
   hideWindowToTray,
   isTauriDesktop,
-  openExternalUrl,
+  installAppUpdate,
 } from '@/lib/desktop';
 
 interface OnboardingModalProps {
@@ -498,7 +498,7 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
                       <div className="text-xs font-bold text-white flex items-center gap-2">
                         <span>GameVault</span>
                         <span className="chip !h-5 !px-2 font-mono">
-                          v{updateInfo?.currentVersion || '0.4.1'}
+                          v{updateInfo?.currentVersion || '0.4.2'}
                         </span>
                       </div>
                       <p className="text-[11px] text-text-muted mt-1">
@@ -521,7 +521,7 @@ export default function OnboardingModal({ isOpen: controlledOpen, onClose }: Onb
                       <button
                         type="button"
                         onClick={() =>
-                          openExternalUrl(updateInfo.downloadUrl || updateInfo.releaseUrl)
+                          installAppUpdate(updateInfo.downloadUrl || updateInfo.releaseUrl)
                         }
                         className="btn btn-primary btn-sm flex-1"
                       >
