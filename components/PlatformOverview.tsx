@@ -127,43 +127,135 @@ export default function PlatformOverview({
     setIsPlatformModalOpen(true);
   };
 
+  const accentColor = currentPlatform.color || '#8b5cf6';
+
   return (
-    <div className="space-y-8 select-none">
+    <div className="space-y-7 select-none animate-fade-up">
       {/* ── 1. BREADCRUMB ── */}
-      <nav aria-label="breadcrumb" className="bg-[#070e1a]/80 px-4 py-2.5 rounded-2xl border border-white/5 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-400">
+      <nav
+        aria-label="breadcrumb"
+        className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-text-muted"
+      >
         <div className="flex items-center gap-2">
           <Link href="/" className="hover:text-white transition-colors flex items-center gap-1.5">
-            <span>🏠</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 10.5 12 3l9 7.5" />
+              <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
+            </svg>
             <span>{t('nav_home')}</span>
           </Link>
-          <span className="text-slate-600">/</span>
-          <span className="text-slate-300 flex items-center gap-1">
-            <span>🎮</span>
-            <span>{t('nav_platform')}</span>
-          </span>
-          <span className="text-slate-600">/</span>
-          <span className="text-yellow-400 font-bold flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-0.5 rounded-lg border border-yellow-500/25">
+          <span className="text-white/20">/</span>
+          <span className="text-text-secondary">{t('nav_platform')}</span>
+          <span className="text-white/20">/</span>
+          <span
+            className="chip text-white font-semibold"
+            style={{
+              backgroundColor: `${accentColor}1f`,
+              borderColor: `${accentColor}45`,
+            }}
+          >
             <span>{currentPlatform.icon}</span>
             <span>{currentPlatform.name}</span>
           </span>
         </div>
 
         {reorderStatus && (
-          <div className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold animate-fade-in flex items-center gap-1">
-            <span>●</span>
+          <div className="chip !bg-emerald-500/15 !border-emerald-500/30 !text-emerald-300 animate-fade-in">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>{reorderStatus}</span>
           </div>
         )}
       </nav>
 
-      {/* ── 2. PLATFORM SEÇİM VE SIRALAMA SEKMELERİ ── */}
-      <div>
-        <div className="flex flex-wrap items-center justify-between mb-3 px-1 gap-2">
+      {/* ── 2. SEÇİLİ PLATFORM HERO BAŞLIĞI ── */}
+      <div className="card relative overflow-hidden rounded-2xl p-6 md:p-8">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(45rem 24rem at 92% -15%, ${accentColor}2e, transparent 65%), radial-gradient(28rem 18rem at -5% 110%, ${accentColor}18, transparent 60%)`,
+          }}
+        />
+        <div
+          className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full"
+          style={{ background: accentColor }}
+        />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl border shrink-0 shadow-lg"
+              style={{
+                backgroundColor: `${accentColor}22`,
+                borderColor: `${accentColor}45`,
+                boxShadow: `0 12px 32px -12px ${accentColor}66`,
+              }}
+            >
+              {currentPlatform.icon}
+            </div>
+
+            <div>
+              <div className="eyebrow mb-1">{t('nav_platform')}</div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="page-title">{currentPlatform.name}</h1>
+                <span className="chip tabular-nums">
+                  {currentPlatform.games.length} Oyun
+                </span>
+                <span
+                  className="chip tabular-nums !text-white"
+                  style={{
+                    backgroundColor: `${accentColor}24`,
+                    borderColor: `${accentColor}4d`,
+                  }}
+                >
+                  {platformTotalCount} Toplam Hesap
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary mt-1.5 max-w-2xl">
+                {currentPlatform.description || `${currentPlatform.name} platformundaki oyun hesaplarınızı seçerek listeleyin.`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => openModal('add_game')}
+              className="btn btn-primary"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Bu Platforma Oyun Ekle</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openModal('reorder')}
+              className="btn btn-secondary"
+              title="Platformları sırala ve düzenle"
+            >
+              <span>⇄</span>
+              <span>Sırala / Düzenle</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openModal('new_platform')}
+              className="btn btn-secondary"
+            >
+              <span>⚙️</span>
+              <span>Platform Ekle / Yönet</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. KOMPAKT PLATFORM SEÇİM VE SIRALAMA ŞERİDİ ── */}
+      <div className="card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
               <span>🌐</span> Platform Değiştir
             </h2>
-            <span className="text-[11px] text-slate-500 font-mono">
+            <span className="text-xs text-text-muted tabular-nums">
               ({platforms.length} platform)
             </span>
           </div>
@@ -173,34 +265,24 @@ export default function PlatformOverview({
             <button
               type="button"
               onClick={() => setIsReorderMode(!isReorderMode)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+              className={`btn btn-sm ${
                 isReorderMode
-                  ? 'bg-yellow-500/20 text-yellow-300 border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.3)] ring-1 ring-yellow-400/50'
-                  : 'bg-[#122036] hover:bg-[#1a2f4e] text-slate-300 hover:text-white border-white/10'
+                  ? 'btn-primary'
+                  : 'btn-ghost border border-white/[0.08]'
               }`}
               title="Platformların sırasını değiştirmek için sıralama modunu açın"
             >
               <span>{isReorderMode ? '✓' : '⇄'}</span>
               <span>{isReorderMode ? 'Sıralamayı Bitir' : 'Sıralamayı Düzenle'}</span>
             </button>
-
-            {/* Platform Ekle / Yönet Butonu */}
-            <button
-              type="button"
-              onClick={() => openModal('new_platform')}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-[#122036] hover:bg-[#1a2f4e] text-yellow-400 hover:text-yellow-300 border border-yellow-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-            >
-              <span>⚙️</span>
-              <span>Platform Ekle / Yönet</span>
-            </button>
           </div>
         </div>
 
         {/* Sıralama Modu Rehber Notu */}
         {isReorderMode && (
-          <div className="mb-3 p-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-200/90 flex items-center justify-between animate-fade-in">
+          <div className="mb-3 px-3.5 py-2.5 rounded-xl bg-accent-500/10 border border-accent-400/25 text-xs text-accent-300 flex flex-wrap items-center justify-between gap-2 animate-fade-in">
             <div className="flex items-center gap-2">
-              <span className="text-base">💡</span>
+              <span>💡</span>
               <span>
                 Kartların üzerindeki <b>◀ (Sola)</b> ve <b>▶ (Sağa)</b> oklarına tıklayarak veya kartları <b>sürükleyip bırakarak</b> platformların yerini değiştirebilirsiniz.
               </span>
@@ -208,20 +290,21 @@ export default function PlatformOverview({
             <button
               type="button"
               onClick={() => openModal('reorder')}
-              className="text-[11px] underline text-yellow-400 hover:text-yellow-300 font-bold ml-2 shrink-0 cursor-pointer"
+              className="text-xs underline text-white hover:text-accent-300 font-semibold shrink-0 cursor-pointer"
             >
               Detaylı Liste Sıralaması →
             </button>
           </div>
         )}
 
-        {/* Platform Kartları Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {/* Kompakt Platform Kartları Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
           {platforms.map((p, index) => {
             const isSelected = p.slug === currentPlatform.slug;
             const pCount = p.games.reduce((acc, g) => acc + getGameCount(g.slug), 0);
             const isDragging = draggedIdx === index;
             const isOver = dragOverIdx === index;
+            const pColor = p.color || '#8b5cf6';
 
             return (
               <div
@@ -230,28 +313,37 @@ export default function PlatformOverview({
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={(e) => handleDrop(e, index)}
-                className={`group relative overflow-hidden rounded-2xl p-3.5 transition-all duration-200 border flex flex-col justify-between min-h-[120px] ${
+                className={`group relative overflow-hidden rounded-xl p-2.5 transition-all duration-200 border flex flex-col justify-between ${
                   isDragging
-                    ? 'opacity-40 border-yellow-400 scale-95'
+                    ? 'opacity-40 border-accent-400 scale-95'
                     : isOver
-                    ? 'border-yellow-400 bg-[#162a4d] shadow-[0_0_20px_rgba(234,179,8,0.4)] -translate-y-1'
+                    ? 'border-accent-400 bg-accent-500/15 -translate-y-0.5'
                     : isSelected
-                    ? 'bg-gradient-to-b from-[#132545] to-[#0a1526] border-blue-400/80 shadow-[0_0_25px_rgba(59,130,246,0.3)] ring-1 ring-blue-400/50'
-                    : 'bg-[#070e1a]/80 border-white/5 hover:border-blue-400/30 hover:bg-[#0c192d] hover:-translate-y-0.5'
+                    ? 'bg-white/[0.07] border-white/20 shadow-sm'
+                    : 'bg-white/[0.02] border-white/[0.06] hover:border-white/15 hover:bg-white/[0.045]'
                 }`}
                 style={{
-                  borderColor: isSelected && p.color ? p.color : undefined,
+                  borderColor: isSelected ? `${pColor}66` : undefined,
                 }}
               >
+                {isSelected && (
+                  <span
+                    className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full"
+                    style={{ background: pColor }}
+                  />
+                )}
+
                 {/* Sol & Sağ Kaydırma Butonları (Sıralama kontrolleri) */}
-                <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 transition-opacity ${
-                  isReorderMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                }`}>
+                <div
+                  className={`absolute top-1.5 right-1.5 z-20 flex items-center gap-0.5 transition-opacity ${
+                    isReorderMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={(e) => handleShiftPlatform(index, 'left', e)}
                     disabled={index === 0}
-                    className="w-5 h-5 rounded-md bg-black/70 hover:bg-yellow-500 text-white hover:text-black disabled:opacity-20 disabled:hover:bg-black/70 disabled:hover:text-white flex items-center justify-center text-[10px] font-black cursor-pointer transition-colors shadow"
+                    className="w-5 h-5 rounded-md bg-ink-900/90 hover:bg-accent-500 text-text-secondary hover:text-white disabled:opacity-20 border border-white/10 flex items-center justify-center text-[9px] font-bold cursor-pointer transition-colors"
                     title="Platformu sola kaydır (öne al)"
                   >
                     ◀
@@ -260,19 +352,12 @@ export default function PlatformOverview({
                     type="button"
                     onClick={(e) => handleShiftPlatform(index, 'right', e)}
                     disabled={index === platforms.length - 1}
-                    className="w-5 h-5 rounded-md bg-black/70 hover:bg-yellow-500 text-white hover:text-black disabled:opacity-20 disabled:hover:bg-black/70 disabled:hover:text-white flex items-center justify-center text-[10px] font-black cursor-pointer transition-colors shadow"
+                    className="w-5 h-5 rounded-md bg-ink-900/90 hover:bg-accent-500 text-text-secondary hover:text-white disabled:opacity-20 border border-white/10 flex items-center justify-center text-[9px] font-bold cursor-pointer transition-colors"
                     title="Platformu sağa kaydır (arkaya al)"
                   >
                     ▶
                   </button>
                 </div>
-
-                {/* Sürükleme Tutamacı & Sıra Numarası (Sıralama modunda) */}
-                {isReorderMode && (
-                  <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded bg-yellow-500/20 border border-yellow-500/30 text-[10px] font-mono font-bold text-yellow-300">
-                    #{index + 1}
-                  </div>
-                )}
 
                 {/* Kart İçeriği Linki */}
                 <Link
@@ -282,45 +367,23 @@ export default function PlatformOverview({
                       e.preventDefault();
                     }
                   }}
-                  className="flex flex-col justify-between flex-1 cursor-pointer"
+                  className="flex items-center gap-2.5 cursor-pointer"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-2xl group-hover:scale-110 transition-transform">
-                      {p.icon}
-                    </span>
-                    {!isReorderMode && (
-                      <span
-                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
-                          isSelected
-                            ? 'bg-blue-500/25 text-blue-200 border-blue-400/40'
-                            : 'bg-white/5 text-slate-400 border-white/5'
-                        }`}
-                      >
-                        {pCount} Hesap
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-black text-white group-hover:text-blue-300 transition-colors truncate">
+                  <span
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 border border-white/[0.08]"
+                    style={{ backgroundColor: `${pColor}1f` }}
+                  >
+                    {p.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-white truncate">
                       {p.name}
                     </div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      {p.games.length} Oyun Portalı
+                    <div className="text-[11px] text-text-muted tabular-nums truncate">
+                      {isReorderMode
+                        ? `#${index + 1} · ${p.games.length} Oyun`
+                        : `${p.games.length} Oyun · ${pCount} Hesap`}
                     </div>
-                  </div>
-
-                  <div className="mt-2.5 h-4 flex items-center">
-                    {isSelected ? (
-                      <div className="text-[10px] font-bold text-yellow-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                        <span>Aktif Platform</span>
-                      </div>
-                    ) : (
-                      <span className="text-[9px] text-slate-500 font-mono opacity-60 group-hover:opacity-100 group-hover:text-blue-300 transition-colors">
-                        {isReorderMode ? `Sıra: ${index + 1}` : 'Seçmek için tıkla →'}
-                      </span>
-                    )}
                   </div>
                 </Link>
               </div>
@@ -331,107 +394,57 @@ export default function PlatformOverview({
           <button
             type="button"
             onClick={() => openModal('new_platform')}
-            className="group rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-400/60 bg-[#070e1a]/40 hover:bg-[#0c192d]/60 p-3.5 flex flex-col items-center justify-center text-center transition-all cursor-pointer min-h-[120px]"
+            className="group rounded-xl border border-dashed border-white/10 hover:border-accent-400/50 bg-white/[0.015] hover:bg-white/[0.04] p-2.5 flex items-center justify-center gap-2 text-center transition-all cursor-pointer min-h-[54px]"
           >
-            <span className="text-xl group-hover:scale-125 transition-transform mb-1">➕</span>
-            <span className="text-[11px] font-bold text-slate-300 group-hover:text-yellow-400 transition-colors">
+            <span className="text-sm text-accent-400 group-hover:scale-110 transition-transform">➕</span>
+            <span className="text-xs font-semibold text-text-secondary group-hover:text-white transition-colors">
               Platform Ekle
             </span>
           </button>
         </div>
       </div>
 
-      {/* ── 3. SEÇİLİ PLATFORM DETAY BAŞLIĞI ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0c1a30] via-[#081220] to-[#050b14] border border-blue-500/20 p-6 md:p-8 shadow-xl">
-        <div
-          className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-20"
-          style={{ backgroundColor: currentPlatform.color || '#3b82f6' }}
-        />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-inner border shrink-0"
-              style={{
-                backgroundColor: currentPlatform.color ? `${currentPlatform.color}25` : '#3b82f625',
-                borderColor: currentPlatform.color ? `${currentPlatform.color}50` : '#3b82f650',
-              }}
-            >
-              {currentPlatform.icon}
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl font-black text-white tracking-tight">
-                  {currentPlatform.name}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  {currentPlatform.games.length} Oyun
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-                  {platformTotalCount} Toplam Hesap
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                {currentPlatform.description || `${currentPlatform.name} platformundaki oyun hesaplarınızı seçerek listeleyin.`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            <button
-              type="button"
-              onClick={() => openModal('add_game')}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>➕</span>
-              <span>Bu Platforma Oyun Ekle</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => openModal('reorder')}
-              className="px-3 py-2.5 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Platformları sırala ve düzenle"
-            >
-              <span>⇄</span>
-              <span>Sırala / Düzenle</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── 4. SEÇİLİ PLATFORMUN OYUN KARTLARI (STORE VİTRİNİ) ── */}
-      <div className="pb-12">
-        <div className="flex items-center justify-between mb-4 px-1">
+      <div className="space-y-4">
+        <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-base font-black text-white tracking-tight flex items-center gap-2">
-              <span>🎮</span>
+            <div className="eyebrow mb-1">{currentPlatform.name}</div>
+            <h2 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
               <span>{currentPlatform.name} Oyunları</span>
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-sm text-text-secondary mt-0.5">
               Yönetmek istediğiniz oyuna tıklayarak o oyunun hesap listesine ve istatistiklerine gidin.
             </p>
           </div>
         </div>
 
         {currentPlatform.games.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-white/10 bg-[#070e1a]/40 p-10 text-center flex flex-col items-center justify-center">
-            <span className="text-4xl mb-3">🎮</span>
+          <div className="card p-12 text-center flex flex-col items-center justify-center">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-4 border"
+              style={{
+                backgroundColor: `${accentColor}1a`,
+                borderColor: `${accentColor}38`,
+              }}
+            >
+              🎮
+            </div>
             <h3 className="text-base font-bold text-white">Bu platformda henüz oyun bulunmuyor</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm">
+            <p className="text-sm text-text-secondary mt-1 max-w-sm">
               İlk oyun portalını ekleyerek hesaplarınızı bu platform altında yönetmeye başlayın.
             </p>
             <button
               type="button"
               onClick={() => openModal('add_game')}
-              className="mt-4 px-5 py-2.5 rounded-xl text-xs font-bold bg-yellow-500 hover:bg-yellow-400 text-slate-950 cursor-pointer shadow transition-all"
+              className="btn btn-primary mt-5"
             >
-              ➕ İlk Oyunu Ekle
+              <span>➕</span>
+              <span>İlk Oyunu Ekle</span>
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {currentPlatform.games.map((g) => {
                 const count = getGameCount(g.slug);
                 const targetUrl = `/platform/${currentPlatform.slug}/${g.slug}`;
@@ -440,31 +453,40 @@ export default function PlatformOverview({
                   <Link
                     key={g.slug}
                     href={targetUrl}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#111e33] via-[#0a1220] to-[#060c16] border border-white/10 hover:border-yellow-400/60 p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_15px_35px_rgba(234,179,8,0.2)] flex flex-col justify-between"
+                    className="card card-interactive group overflow-hidden p-6 flex flex-col justify-between"
                   >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl group-hover:bg-yellow-500/25 transition-all pointer-events-none" />
+                    <div
+                      className="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none"
+                      style={{ backgroundColor: accentColor }}
+                    />
 
-                    <div>
+                    <div className="relative z-10">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 group-hover:border-yellow-400/40 group-hover:bg-yellow-500/15 flex items-center justify-center text-3xl shadow-inner transition-colors">
+                        <div
+                          className="w-12 h-12 rounded-xl border flex items-center justify-center text-2xl transition-transform group-hover:scale-105"
+                          style={{
+                            backgroundColor: `${accentColor}1a`,
+                            borderColor: `${accentColor}38`,
+                          }}
+                        >
                           {g.icon}
                         </div>
-                        <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">
+                        <span className="chip tabular-nums">
                           {count} Hesap
                         </span>
                       </div>
 
-                      <h3 className="text-lg font-black text-white group-hover:text-yellow-400 transition-colors">
+                      <h3 className="text-base font-bold tracking-tight text-white group-hover:text-accent-300 transition-colors">
                         {g.name}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed min-h-[36px]">
+                      <p className="text-sm text-text-secondary mt-1.5 leading-relaxed min-h-[40px]">
                         {g.description || `${g.name} hesap ve envanter yönetimi`}
                       </p>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-yellow-400 group-hover:translate-x-1 transition-transform">
+                    <div className="relative z-10 mt-6 pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-semibold text-accent-300 group-hover:text-white transition-colors">
                       <span>Hesapları Yönet</span>
-                      <span>→</span>
+                      <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </div>
                   </Link>
                 );
@@ -475,15 +497,15 @@ export default function PlatformOverview({
                 <button
                   type="button"
                   onClick={() => openModal('add_game')}
-                  className="group rounded-3xl border-2 border-dashed border-white/15 hover:border-yellow-400/60 bg-[#070e1a]/40 hover:bg-[#0c192d]/60 p-6 flex flex-col items-center justify-center text-center transition-all cursor-pointer min-h-[220px] hover:shadow-[0_10px_30px_rgba(234,179,8,0.15)]"
+                  className="group rounded-2xl border border-dashed border-white/10 hover:border-accent-400/50 bg-white/[0.015] hover:bg-white/[0.035] p-6 flex flex-col items-center justify-center text-center transition-all cursor-pointer min-h-[210px]"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-yellow-500/10 group-hover:bg-yellow-500/20 border border-yellow-500/30 group-hover:scale-110 flex items-center justify-center text-3xl transition-transform mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-accent-500/10 border border-accent-400/25 group-hover:scale-105 flex items-center justify-center text-2xl transition-transform mb-3">
                     ➕
                   </div>
-                  <h3 className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">
+                  <h3 className="text-sm font-bold text-white group-hover:text-accent-300 transition-colors">
                     Bu Platforma Yeni Oyun Ekle
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
+                  <p className="text-xs text-text-muted mt-1 max-w-[200px]">
                     {currentPlatform.name} altına dilediğin oyunu ekle.
                   </p>
                 </button>
@@ -494,23 +516,23 @@ export default function PlatformOverview({
             {currentPlatform.games.length % 3 === 0 && (
               <div
                 onClick={() => openModal('add_game')}
-                className="mt-5 p-4 rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-400/60 bg-[#070e1a]/40 hover:bg-[#0c192d]/70 flex items-center justify-between transition-all cursor-pointer shadow-md group"
+                className="mt-4 p-4 rounded-2xl border border-dashed border-white/10 hover:border-accent-400/50 bg-white/[0.015] hover:bg-white/[0.035] flex items-center justify-between transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/20 group-hover:scale-110 flex items-center justify-center text-xl transition-transform">
+                  <div className="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-400/25 group-hover:scale-105 flex items-center justify-center text-lg transition-transform">
                     ➕
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white group-hover:text-yellow-400 transition-colors">
+                    <h4 className="text-sm font-bold text-white group-hover:text-accent-300 transition-colors">
                       {currentPlatform.name} için Yeni Bir Oyun Portalı Ekle
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-text-muted">
                       Bu platform altındaki oyun kütüphanenizi dilediğiniz gibi genişletin.
                     </p>
                   </div>
                 </div>
 
-                <span className="text-xs font-bold text-yellow-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform pr-2">
+                <span className="text-xs font-semibold text-accent-300 flex items-center gap-1 group-hover:translate-x-1 transition-transform pr-2">
                   <span>Oyun Ekle</span>
                   <span>→</span>
                 </span>

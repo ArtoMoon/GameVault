@@ -68,29 +68,29 @@ async function main() {
     'User-Agent': 'GameVault-Release-Uploader',
   };
 
-  const releaseName = `GameVault v${version} - Rebranded, Modern Logo & Ultra-Fast Tauri Desktop`;
+  const releaseName = `GameVault v${version} - Glassmorphic v2 UI, System Tray & Dynamic Port Engine`;
   const releaseBody = `## 🎮 GameVault v${version} Release Notes
 
-Welcome to **GameVault** (formerly MyLoL) — the all-new universal gaming dashboard and alt-account manager!
+Welcome to **GameVault v${version}** — a complete visual overhaul with a new glassmorphic dark UI, system tray support, in-app update notifications, and a conflict-free desktop server engine!
 
 ---
 
-### ✨ What's New:
+### ✨ What's New in v${version}:
 
-#### 🚀 1. Rebranded to GameVault with Modern Gaming Logo
-- **Universal Multi-Game Focus:** Evolved beyond LoL into a universal account hub supporting **Albion Online**, **Riot Games** (LoL, Valorant, TFT), **Steam**, **Epic Games**, **Battle.net**, **EA app**, and custom platforms.
-- **Brand New High-Tech Logo:** Modern glowing neon controller shield emblem designed for dark gaming setups.
+#### 🎨 1. Design System v2 — Complete Glassmorphic UI Overhaul
+- **Collapsible Sidebar Navigation:** Replaced the top bar with a sleek, collapsible sidebar featuring dynamic platform & game trees, live DB indicator, and instant language switching.
+- **Ink & Aurora Aesthetic:** Deep ink-black surfaces (\`#05060a\`), frosted glass cards, violet-to-cyan accent gradients, and staggered entrance animations across every page and modal.
+- **Redesigned Views & Modals:** All-new Home dashboard, Platform showcase, Game account views, Account Detail profile hero & match cards, and 3-step Setup & Settings modal.
 
-#### ⚡ 2. Modern Tauri v2 Desktop Engine
-- **85% Smaller Setup:** File size slashed from ~185 MB to **~28 MB**!
-- **Zero Lag / Fast Startup:** Instant launch with low memory footprint (~40 MB RAM).
-- **Auto-Boot Standalone Engine:** Seamless background service orchestration.
+#### 📌 2. System Tray & Background Mode ("Minimize to Tray on Close")
+- **Stay in the System Tray:** Closing the window (\`X\`) can now minimize GameVault to a small icon in the Windows system tray instead of quitting, with a toggle in **Settings** and a quick **"Minimize to Tray Now"** button.
+- **Tray Context Menu:** Left-click the tray icon to restore the window instantly, or right-click for **Open GameVault**, **Minimize to Tray**, and **Quit Completely**.
 
-#### 🛡️ 3. Albion Online Live API Integration
-- Live fame, PvP kills, player guilds, real in-game avatars, and smart tier calculation.
+#### 🔔 3. In-App Update Checker & One-Click Update Button
+- Automatically checks GitHub Releases for newer versions and surfaces a glowing **Update Available** button in the sidebar and Settings modal.
 
-#### 🎛️ 4. Universal Platform & Game Presets
-- Drag/reorder platforms, edit platform details, customize colors and API engines.
+#### 🔌 4. Dedicated Dynamic Port & Server Signature Verification
+- Eliminated port \`3000\` collisions with other local dev servers. GameVault now binds to a dedicated free port (\`47310+\`) and verifies the \`/api/health\` signature before navigating.
 
 ---
 

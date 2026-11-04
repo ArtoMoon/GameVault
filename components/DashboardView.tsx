@@ -71,30 +71,36 @@ export default function DashboardView({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 animate-fade-up">
       {/* ── 📍 BREADCRUMB & OYUN HİYERARŞİSİ (HESAPLAR > OYUN) ── */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 px-1">
-        <Link href="/" className="hover:text-white transition-colors flex items-center gap-1">
-          <span>🏠</span>
+      <div className="flex items-center gap-2 text-xs font-medium text-text-muted">
+        <Link href="/" className="hover:text-white transition-colors flex items-center gap-1.5">
           <span>{t('nav_home')}</span>
         </Link>
-        <span className="text-slate-600">/</span>
+        <span className="text-white/20">/</span>
         <button
           type="button"
           onClick={() => setGameFilter('')}
-          className={`hover:text-white transition-colors cursor-pointer flex items-center gap-1 ${
-            !gameFilter ? 'text-white font-bold' : ''
+          className={`hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 ${
+            !gameFilter ? 'text-text-primary font-semibold' : ''
           }`}
         >
-          <span>🎮</span>
           <span>{t('nav_accounts')}</span>
         </button>
         {gameFilter && (
           <>
-            <span className="text-slate-600">/</span>
-            <span className="text-yellow-400 font-bold flex items-center gap-1.5 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20">
-              <span>{gameFilter === 'lol' ? '⚔️ League of Legends' : gameFilter === 'valorant' ? '🎯 Valorant' : gameFilter === 'tft' ? '♟️ TFT' : '🎮 Diğer Oyunlar'}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-yellow-400/20 text-yellow-300 font-mono">
+            <span className="text-white/20">/</span>
+            <span className="chip !border-accent-400/30 !bg-accent-500/10 !text-accent-300">
+              <span>
+                {gameFilter === 'lol'
+                  ? '⚔️ League of Legends'
+                  : gameFilter === 'valorant'
+                  ? '🎯 Valorant'
+                  : gameFilter === 'tft'
+                  ? '♟️ TFT'
+                  : '🎮 Diğer Oyunlar'}
+              </span>
+              <span className="text-[10px] px-1.5 rounded-full bg-accent-400/20 text-white tabular-nums">
                 {scopedAccounts.length}
               </span>
             </span>
@@ -112,18 +118,18 @@ export default function DashboardView({
 
       {/* ── 2. AÇILIR / KAPANIR HESAP EKLEME PANELİ (COLLAPSIBLE ADD DRAWER) ── */}
       {isAddOpen && (
-        <div className="bg-gradient-to-b from-[#0a1424] to-[#070e1a] border border-blue-500/25 rounded-3xl p-5 md:p-6 shadow-2xl backdrop-blur-xl animate-fade-in relative overflow-hidden">
-          <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+        <div className="card p-5 md:p-6 animate-scale-in">
+          <div className="flex items-center justify-between pb-3.5 mb-5 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
+              <h2 className="text-sm font-bold text-white tracking-tight">
                 {t('modal_add_title') || 'Yeni Hesap Ekle'}
               </h2>
             </div>
             <button
               type="button"
               onClick={() => setIsAddOpen(false)}
-              className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+              className="btn btn-ghost btn-sm text-text-muted hover:text-white"
             >
               ✕ Kapat
             </button>
@@ -137,103 +143,85 @@ export default function DashboardView({
       )}
 
       {/* ── 3. OYUN SEÇİM SEKMELERİ (ESPORTS GAME TABS) ── */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        <button
-          type="button"
-          onClick={() => setGameFilter('')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-            gameFilter === ''
-              ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] scale-102 ring-1 ring-blue-400/50'
-              : 'bg-[#091120]/90 text-slate-400 hover:text-white border border-white/5 hover:border-white/15'
-          }`}
-        >
-          <span>🌐 Tüm Oyunlar</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
-            {gameCounts.all}
-          </span>
-        </button>
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="segmented">
+          <button
+            type="button"
+            data-active={gameFilter === ''}
+            onClick={() => setGameFilter('')}
+          >
+            <span>🌐 Tüm Oyunlar</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.07] tabular-nums">
+              {gameCounts.all}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setGameFilter(gameFilter === 'lol' ? '' : 'lol')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-            gameFilter === 'lol'
-              ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-102 ring-1 ring-yellow-400/50'
-              : 'bg-[#091120]/90 text-slate-400 hover:text-white border border-white/5 hover:border-yellow-500/20'
-          }`}
-        >
-          <span>⚔️ League of Legends</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
-            {gameCounts.lol}
-          </span>
-        </button>
+          <button
+            type="button"
+            data-active={gameFilter === 'lol'}
+            onClick={() => setGameFilter(gameFilter === 'lol' ? '' : 'lol')}
+          >
+            <span>⚔️ League of Legends</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.07] tabular-nums">
+              {gameCounts.lol}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setGameFilter(gameFilter === 'valorant' ? '' : 'valorant')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-            gameFilter === 'valorant'
-              ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-102 ring-1 ring-rose-400/50'
-              : 'bg-[#091120]/90 text-slate-400 hover:text-white border border-white/5 hover:border-rose-500/20'
-          }`}
-        >
-          <span>🎯 Valorant</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
-            {gameCounts.valorant}
-          </span>
-        </button>
+          <button
+            type="button"
+            data-active={gameFilter === 'valorant'}
+            onClick={() => setGameFilter(gameFilter === 'valorant' ? '' : 'valorant')}
+          >
+            <span>🎯 Valorant</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.07] tabular-nums">
+              {gameCounts.valorant}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setGameFilter(gameFilter === 'tft' ? '' : 'tft')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-            gameFilter === 'tft'
-              ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-102 ring-1 ring-purple-400/50'
-              : 'bg-[#091120]/90 text-slate-400 hover:text-white border border-white/5 hover:border-purple-500/20'
-          }`}
-        >
-          <span>♟️ TFT</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
-            {gameCounts.tft}
-          </span>
-        </button>
+          <button
+            type="button"
+            data-active={gameFilter === 'tft'}
+            onClick={() => setGameFilter(gameFilter === 'tft' ? '' : 'tft')}
+          >
+            <span>♟️ TFT</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.07] tabular-nums">
+              {gameCounts.tft}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setGameFilter(gameFilter === 'other' ? '' : 'other')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-            gameFilter === 'other'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102 ring-1 ring-emerald-400/50'
-              : 'bg-[#091120]/90 text-slate-400 hover:text-white border border-white/5 hover:border-emerald-500/20'
-          }`}
-        >
-          <span>🎮 Diğer Oyunlar</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
-            {gameCounts.other}
-          </span>
-        </button>
+          <button
+            type="button"
+            data-active={gameFilter === 'other'}
+            onClick={() => setGameFilter(gameFilter === 'other' ? '' : 'other')}
+          >
+            <span>🎮 Diğer Oyunlar</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.07] tabular-nums">
+              {gameCounts.other}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ── 4. KOMPAKT HUD METRİK ÇERÇEVESİ (COMPACT HUD METRICS STRIP) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
         {/* Toplam */}
         <button
           type="button"
           onClick={() => setStatusFilter('')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === ''
-              ? 'bg-[#0e1d35] border-blue-400/60 shadow-[0_0_15px_rgba(59,130,246,0.25)] ring-1 ring-blue-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-white/15 hover:bg-[#0a1424]'
+              ? '!border-accent-400/50 !bg-accent-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center text-base shrink-0">
             🗂️
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {total}
             </div>
-            <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-text-muted truncate mt-1">
               {t('stat_total')}
             </div>
           </div>
@@ -243,20 +231,20 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => toggleStatus('available')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === 'available'
-              ? 'bg-emerald-950/40 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-emerald-500/30 hover:bg-[#0a1424]'
+              ? '!border-emerald-400/50 !bg-emerald-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-base shrink-0">
             ✅
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {available}
             </div>
-            <div className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-emerald-400/90 truncate mt-1">
               {t('stat_available')}
             </div>
           </div>
@@ -266,20 +254,20 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => toggleStatus('active')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === 'active'
-              ? 'bg-blue-950/40 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] ring-1 ring-blue-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-blue-500/30 hover:bg-[#0a1424]'
+              ? '!border-sky-400/50 !bg-sky-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center text-base shrink-0">
             🎮
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {active}
             </div>
-            <div className="text-[11px] text-blue-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-sky-400/90 truncate mt-1">
               {t('stat_active')}
             </div>
           </div>
@@ -289,20 +277,20 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => toggleStatus('level')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === 'level'
-              ? 'bg-purple-950/40 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.35)] ring-1 ring-purple-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-purple-500/30 hover:bg-[#0a1424]'
+              ? '!border-accent-400/50 !bg-accent-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center text-base shrink-0">
             ⚡
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {levelCount}
             </div>
-            <div className="text-[11px] text-purple-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-accent-300 truncate mt-1">
               {t('stat_level')}
             </div>
           </div>
@@ -312,20 +300,20 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => toggleStatus('archived')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === 'archived'
-              ? 'bg-rose-950/40 border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] ring-1 ring-rose-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-rose-500/30 hover:bg-[#0a1424]'
+              ? '!border-zinc-400/50 !bg-zinc-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-zinc-500/15 text-zinc-400 flex items-center justify-center text-base shrink-0">
             📁
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {archived}
             </div>
-            <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-text-muted truncate mt-1">
               {t('stat_archived')}
             </div>
           </div>
@@ -335,20 +323,20 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => toggleStatus('error_checking')}
-          className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer text-left border ${
+          className={`card card-interactive p-4 flex items-center gap-3.5 text-left cursor-pointer ${
             statusFilter === 'error_checking'
-              ? 'bg-amber-950/40 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
-              : 'bg-[#070e1a]/85 border-white/5 hover:border-amber-500/30 hover:bg-[#0a1424]'
+              ? '!border-amber-400/50 !bg-amber-500/[0.08]'
+              : ''
           }`}
         >
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-base shrink-0">
             🚫
           </div>
           <div className="min-w-0">
-            <div className="text-xl font-black text-white font-mono leading-none">
+            <div className="text-2xl font-bold tabular-nums text-white leading-none">
               {errored}
             </div>
-            <div className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider truncate mt-0.5">
+            <div className="text-xs text-amber-400/90 truncate mt-1">
               {t('stat_banned')}
             </div>
           </div>

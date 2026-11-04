@@ -197,104 +197,97 @@ export default function AddAccountForm({
       <form className="w-full" onSubmit={handleSubmit}>
         <div className="space-y-4">
           {/* Üst Seçiciler Satırı: Oyun, Kategori, Bölge */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
             {/* Oyun Seçici */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="add-game" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label htmlFor="add-game" className="label flex items-center gap-1.5">
                 <span>🎮</span> {t('game') || 'Oyun'}
               </label>
-              <div className="relative">
-                <select
-                  id="add-game"
-                  className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none cursor-pointer transition-all appearance-none"
-                  value={game}
-                  onChange={(e) => handleGameSelect(e.target.value)}
-                  disabled={isPending}
-                >
-                  {dynamicGames.map((g) => (
-                    <option key={g.value} value={g.value} className="bg-[#0a1424] text-white">
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
-              </div>
+              <select
+                id="add-game"
+                className="input font-medium cursor-pointer"
+                value={game}
+                onChange={(e) => handleGameSelect(e.target.value)}
+                disabled={isPending}
+              >
+                {dynamicGames.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Kategori Seçici */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="add-category" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <div className="flex items-center justify-between mb-[0.4rem]">
+                <label htmlFor="add-category" className="label !mb-0 flex items-center gap-1.5">
                   <span>🏷️</span> {t('category') || 'Kategori'}
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsCatModalOpen(true)}
-                  className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                  className="text-[11px] font-semibold text-accent-400 hover:text-accent-300 transition-colors cursor-pointer"
                 >
                   + Yeni Kategori
                 </button>
               </div>
-              <div className="relative">
-                <select
-                  id="add-category"
-                  className="w-full bg-[#070e1a] border border-white/10 hover:border-yellow-400/40 focus:border-yellow-400 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none cursor-pointer transition-all appearance-none"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={isPending}
-                >
-                  <option value="" className="bg-[#0a1424] text-slate-400">
-                    📁 {t('category_none') || 'Kategorisiz'}
+              <select
+                id="add-category"
+                className="input font-medium cursor-pointer"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={isPending}
+              >
+                <option value="">
+                  📁 {t('category_none') || 'Kategorisiz'}
+                </option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c.name}>
+                    {c.icon} {c.name}
                   </option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c.name} className="bg-[#0a1424] text-white">
-                      {c.icon} {c.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
-              </div>
+                ))}
+              </select>
             </div>
 
             {/* Bölge / Sunucu Seçici */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="add-platform" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label htmlFor="add-platform" className="label flex items-center gap-1.5">
                 <span>🌐</span> {isAlbion ? 'Albion Sunucusu' : t('label_region') || 'Bölge / Sunucu'}
               </label>
-              <div className="relative">
-                <select
-                  id="add-platform"
-                  className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none cursor-pointer transition-all appearance-none"
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value)}
-                  disabled={isPending}
-                  aria-label={t('label_region')}
-                >
-                  {currentPlatformOptions.map((p) => (
-                    <option key={p.value} value={p.value} className="bg-[#0a1424] text-white">
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
-              </div>
+              <select
+                id="add-platform"
+                className="input font-medium cursor-pointer"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                disabled={isPending}
+                aria-label={t('label_region')}
+              >
+                {currentPlatformOptions.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* Alt Satır: Hesap Adı & Kullanıcı Adı & (opsiyonel Level/Rank) & Kaydet Butonu */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
             {/* Hesap Adı Girişi */}
-            <div className={`${!isRiotGame ? 'sm:col-span-4' : 'sm:col-span-6'} flex flex-col gap-1.5`}>
-              <label htmlFor="add-riot-id" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className={`${!isRiotGame ? 'sm:col-span-4' : 'sm:col-span-6'}`}>
+              <label htmlFor="add-riot-id" className="label flex items-center gap-1.5">
                 <span>⚡</span> {isAlbion ? 'Albion Karakter / Hesap Adı' : !isRiotGame ? 'Hesap / Oyuncu Adı' : t('label_riot_id')}
-                <span className="text-yellow-400/80 font-normal font-sans text-[10px] ml-1">
-                  {isRiotGame && '(GameName#TAG)'}
-                </span>
+                {isRiotGame && (
+                  <span className="text-accent-400/90 font-normal normal-case tracking-normal text-[10px] ml-0.5">
+                    (GameName#TAG)
+                  </span>
+                )}
               </label>
               <input
                 id="add-riot-id"
                 type="text"
-                className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 focus:shadow-[0_0_15px_rgba(59,130,246,0.2)] rounded-xl px-4 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                className="input"
                 placeholder={isAlbion ? 'Örn: AlbionHero' : !isRiotGame ? 'Hesap Adı / Nickname' : t('placeholder_riot_id')}
                 value={riotId}
                 onChange={(e) => setRiotId(e.target.value)}
@@ -304,14 +297,14 @@ export default function AddAccountForm({
             </div>
 
             {/* Kullanıcı Adı (İstemci Girişi) */}
-            <div className={`${!isRiotGame ? 'sm:col-span-3' : 'sm:col-span-4'} flex flex-col gap-1.5`}>
-              <label htmlFor="add-username" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
-                <span>🔑</span> {t('label_username')} (İsteğe Bağlı)
+            <div className={`${!isRiotGame ? 'sm:col-span-3' : 'sm:col-span-4'}`}>
+              <label htmlFor="add-username" className="label flex items-center gap-1.5 truncate">
+                <span>🔑</span> {t('label_username')} <span className="text-text-muted/70 normal-case font-normal">(İsteğe Bağlı)</span>
               </label>
               <input
                 id="add-username"
                 type="text"
-                className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 focus:shadow-[0_0_15px_rgba(59,130,246,0.2)] rounded-xl px-4 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                className="input"
                 placeholder={t('placeholder_username')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -322,15 +315,15 @@ export default function AddAccountForm({
             {/* Riot harici oyunlar için Seviye ve Rank girişleri */}
             {!isRiotGame && (
               <>
-                <div className="sm:col-span-1 flex flex-col gap-1.5">
-                  <label htmlFor="add-level" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
+                <div className="sm:col-span-1">
+                  <label htmlFor="add-level" className="label flex items-center gap-1 truncate">
                     <span>⚡</span> Level
                   </label>
                   <input
                     id="add-level"
                     type="number"
                     min="0"
-                    className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                    className="input tabular-nums"
                     placeholder="1"
                     value={customLevel}
                     onChange={(e) => setCustomLevel(e.target.value)}
@@ -338,14 +331,14 @@ export default function AddAccountForm({
                   />
                 </div>
 
-                <div className="sm:col-span-2 flex flex-col gap-1.5">
-                  <label htmlFor="add-rank" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 truncate">
+                <div className="sm:col-span-2">
+                  <label htmlFor="add-rank" className="label flex items-center gap-1.5 truncate">
                     <span>🏆</span> {isAlbion ? 'Tier / Rank' : 'Rank / Lig'}
                   </label>
                   <input
                     id="add-rank"
                     type="text"
-                    className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                    className="input"
                     placeholder={isAlbion ? 'Örn: Tier 8' : 'Örn: Gold'}
                     value={customRank}
                     onChange={(e) => setCustomRank(e.target.value)}
@@ -360,7 +353,7 @@ export default function AddAccountForm({
               <button
                 type="submit"
                 id="add-account-btn"
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-sans text-xs font-bold cursor-pointer transition-all whitespace-nowrap bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-500 text-slate-950 shadow-[0_0_15px_rgba(234,179,8,0.35)] hover:shadow-[0_0_20px_rgba(234,179,8,0.55)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary w-full !h-10"
                 disabled={isPending || !riotId.trim()}
               >
                 {isPending ? `⏳ ${t('adding')}` : `➕ ${t('save')}`}
@@ -370,12 +363,18 @@ export default function AddAccountForm({
         </div>
 
         {message && (
-          <div className={`mt-3 text-xs px-4 py-3 rounded-xl border flex items-center justify-between ${message.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300'}`}>
+          <div
+            className={`mt-3.5 text-xs px-4 py-3 rounded-xl border flex items-center justify-between animate-fade-in ${
+              message.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}
+          >
             <span>{message.text}</span>
             <button
               type="button"
               onClick={() => setMessage(null)}
-              className="text-slate-400 hover:text-white cursor-pointer ml-2"
+              className="text-text-muted hover:text-white cursor-pointer ml-3 transition-colors"
             >
               ✕
             </button>

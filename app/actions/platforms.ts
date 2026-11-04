@@ -189,7 +189,7 @@ export async function reorderPlatforms(
     await Platform.bulkWrite(bulkOps);
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (err: unknown) {
@@ -237,7 +237,7 @@ export async function updatePlatform(
     await p.save();
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (err: unknown) {
@@ -329,7 +329,7 @@ export async function createPlatform(
     });
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return {
       success: true,
@@ -398,7 +398,7 @@ export async function addGameToPlatform(
     await p.save();
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (err: unknown) {
@@ -416,7 +416,7 @@ export async function deletePlatform(id: string): Promise<{ success: boolean; er
     await Platform.findByIdAndDelete(id);
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (err: unknown) {
@@ -444,7 +444,7 @@ export async function restoreDefaultPlatforms(): Promise<{ success: boolean; err
     }
 
     revalidatePath('/platform');
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (err: unknown) {

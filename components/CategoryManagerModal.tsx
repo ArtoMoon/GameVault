@@ -73,42 +73,50 @@ export default function CategoryManagerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
-      <div className="relative w-full max-w-lg bg-[#080e1a] border border-blue-500/30 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden max-h-[90vh] flex flex-col">
-        
+    <div className="modal-backdrop select-none" onClick={onClose}>
+      <div
+        className="modal-panel max-w-lg flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Başlığı */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#050a14]">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">🏷️</span>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-accent-500/15 border border-accent-400/25 flex items-center justify-center text-lg shrink-0">
+              🏷️
+            </div>
             <div>
-              <h2 className="text-base font-bold text-white">
+              <h2 className="text-base font-bold tracking-tight text-white">
                 {t('manage_categories') || 'Kategorileri Yönet'}
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-text-secondary mt-0.5">
                 {t('manage_categories_desc') || 'Hesaplarınızı gruplamak için özel kategoriler ve etiketler oluşturun.'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm"
+            className="btn btn-ghost btn-sm btn-icon rounded-xl"
+            aria-label={t('close') || 'Kapat'}
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Modal İçeriği */}
         <div className="p-6 overflow-y-auto space-y-6">
-          
           {/* Yeni Kategori Ekle Formu */}
-          <form onSubmit={handleCreate} className="p-4 rounded-2xl bg-[#0c1524] border border-blue-500/20 space-y-3.5">
-            <h3 className="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+          <form onSubmit={handleCreate} className="card p-4 space-y-4">
+            <h3 className="eyebrow flex items-center gap-1.5">
               <span>➕</span> {t('new_category') || 'Yeni Kategori Ekle'}
             </h3>
 
             {error && (
-              <div className="p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/30 text-rose-300">
-                {error}
+              <div className="p-3 rounded-xl text-xs bg-red-500/10 border border-red-500/25 text-red-300 flex items-center gap-2">
+                <span>✕</span>
+                <span>{error}</span>
               </div>
             )}
 
@@ -118,23 +126,23 @@ export default function CategoryManagerModal({
                 placeholder={t('category_name_placeholder') || 'Örn: Main, Smurf, Dereceli...'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="flex-1 px-3.5 py-2 rounded-xl bg-[#050a14] border border-white/15 text-white text-xs outline-none focus:border-blue-400 placeholder:text-slate-600"
+                className="input flex-1"
                 maxLength={40}
               />
               <button
                 type="submit"
                 disabled={isPending || !name.trim()}
-                className="px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="btn btn-primary shrink-0 h-10"
               >
                 {isPending ? '⏳' : `➕ ${t('add') || 'Ekle'}`}
               </button>
             </div>
 
             {/* İkon & Renk Seçici */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <div className="flex flex-col sm:flex-row gap-4 pt-1">
               {/* İkonlar */}
               <div className="flex-1">
-                <span className="block text-[10px] text-slate-400 mb-1.5 font-semibold">
+                <span className="label">
                   {t('select_icon') || 'İkon Seç:'}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -143,10 +151,10 @@ export default function CategoryManagerModal({
                       key={ic}
                       type="button"
                       onClick={() => setIcon(ic)}
-                      className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all cursor-pointer ${
+                      className={`w-8 h-8 rounded-lg text-sm flex items-center justify-center transition-all cursor-pointer border ${
                         icon === ic
-                          ? 'bg-blue-600/40 border-2 border-blue-400 scale-110 shadow-sm'
-                          : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          ? 'bg-accent-500/20 border-accent-400 scale-105 shadow-[0_0_12px_-3px_rgba(139,92,246,0.5)]'
+                          : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15'
                       }`}
                     >
                       {ic}
@@ -156,11 +164,11 @@ export default function CategoryManagerModal({
               </div>
 
               {/* Renkler */}
-              <div className="sm:w-36">
-                <span className="block text-[10px] text-slate-400 mb-1.5 font-semibold">
+              <div className="sm:w-40">
+                <span className="label">
                   {t('select_color') || 'Renk Seç:'}
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2 pt-0.5">
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}
@@ -168,7 +176,9 @@ export default function CategoryManagerModal({
                       onClick={() => setColor(c)}
                       style={{ backgroundColor: c }}
                       className={`w-6 h-6 rounded-full transition-transform cursor-pointer border ${
-                        color === c ? 'scale-125 border-white ring-2 ring-white/30' : 'border-transparent opacity-80 hover:opacity-100'
+                        color === c
+                          ? 'scale-125 border-white ring-2 ring-white/30'
+                          : 'border-white/10 opacity-75 hover:opacity-100 hover:scale-110'
                       }`}
                     />
                   ))}
@@ -179,34 +189,43 @@ export default function CategoryManagerModal({
 
           {/* Mevcut Kategoriler Listesi */}
           <div>
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
-              {t('existing_categories') || 'Mevcut Kategoriler'} ({categories.length})
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="label !mb-0">
+                {t('existing_categories') || 'Mevcut Kategoriler'}
+              </h3>
+              <span className="chip tabular-nums">{categories.length}</span>
+            </div>
 
             {categories.length === 0 ? (
-              <p className="text-xs text-slate-500 py-4 text-center">
-                Henüz kategori eklenmemiş.
-              </p>
+              <div className="card p-6 text-center">
+                <p className="text-xs text-text-muted">
+                  Henüz kategori eklenmemiş.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 stagger">
                 {categories.map((cat) => (
                   <div
                     key={cat._id}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-[#050a14] border border-white/10 hover:border-white/20 transition-all"
+                    className="card px-3.5 py-3 flex items-center justify-between gap-3 hover:border-white/15 transition-colors"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-3 min-w-0">
                       <span
-                        className="w-7 h-7 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm"
-                        style={{ backgroundColor: `${cat.color}25`, border: `1px solid ${cat.color}60` }}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                        style={{
+                          backgroundColor: `${cat.color}1f`,
+                          border: `1px solid ${cat.color}4d`,
+                          boxShadow: `0 0 16px -6px ${cat.color}`,
+                        }}
                       >
                         {cat.icon}
                       </span>
-                      <div>
-                        <span className="text-xs font-bold text-white block">
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-white block truncate">
                           {cat.name}
                         </span>
                         {cat.description && (
-                          <span className="text-[10px] text-slate-400 block">
+                          <span className="text-[11px] text-text-muted block truncate">
                             {cat.description}
                           </span>
                         )}
@@ -217,29 +236,32 @@ export default function CategoryManagerModal({
                       type="button"
                       onClick={() => handleDelete(cat._id, cat.name)}
                       disabled={isPending}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
+                      className="btn btn-danger btn-sm btn-icon shrink-0"
                       title="Sil"
                     >
-                      🗑️
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
                     </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
         </div>
 
         {/* Modal Altı */}
-        <div className="px-6 py-3 border-t border-white/10 bg-[#050a14] flex justify-end">
+        <div className="px-6 py-4 border-t border-white/[0.07] bg-ink-950/40 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            className="btn btn-secondary"
           >
             {t('close') || 'Kapat'}
           </button>
         </div>
-
       </div>
     </div>
   );

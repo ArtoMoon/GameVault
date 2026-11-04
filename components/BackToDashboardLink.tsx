@@ -21,9 +21,21 @@ export default function BackToDashboardLink() {
           router.push('/');
         }
       }}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-white transition-colors mb-6 pb-2 border-b-2 border-transparent hover:border-yellow-500 cursor-pointer group"
+      className="btn btn-ghost btn-sm -ml-2 mb-6 text-text-secondary hover:text-white group"
     >
-      <span className="transition-transform group-hover:-translate-x-1">←</span>
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="transition-transform group-hover:-translate-x-0.5"
+      >
+        <path d="m15 18-6-6 6-6" />
+      </svg>
       <span>{cleanText}</span>
     </button>
   );

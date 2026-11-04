@@ -1,6 +1,6 @@
 {
   "name": "gamevault",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "GameVault – Universal Gaming Dashboard & Account Manager",
   "author": "GameVault",
   "main": "electron/main.cjs",

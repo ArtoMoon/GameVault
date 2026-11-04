@@ -173,36 +173,59 @@ export default function EditAccountModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in select-none">
-      <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#0d1829] to-[#070e1a] border border-blue-500/30 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden max-h-[92vh] flex flex-col">
+    <div className="modal-backdrop !z-[130] select-none" onClick={onClose}>
+      <div
+        className="modal-panel max-w-2xl flex flex-col overflow-hidden p-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#050a14]">
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl">✏️</span>
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-white/[0.07] bg-white/[0.02]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-accent-500/15 border border-accent-400/25 text-accent-300 flex items-center justify-center shrink-0">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="eyebrow">HESAP YÖNETİMİ</div>
+              <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-2 flex-wrap">
                 <span>Hesabı Düzenle</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono">
+                <span className="chip font-mono text-accent-300 !bg-accent-500/15 !border-accent-400/25">
                   {account.riotId}
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-text-muted mt-0.5 truncate">
                 {isAlbion ? 'Albion Online' : isRiotGame ? 'Riot Games' : 'Oyun'} platformuna özel hesap ayarları
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm"
+            className="btn btn-ghost btn-sm btn-icon shrink-0"
+            aria-label="Kapat"
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSave} className="p-6 overflow-y-auto space-y-4 text-xs">
           {error && (
-            <div className="bg-rose-950/60 border border-rose-500/40 text-rose-300 p-3 rounded-xl flex items-center gap-2">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl flex items-center gap-2.5 animate-fade-in">
               <span>⚠️</span>
               <span>{error}</span>
             </div>
@@ -210,18 +233,18 @@ export default function EditAccountModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Oyun Platformu Seçici */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>🎮</span> Oyun / Platform
               </label>
               <select
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-white font-semibold outline-none cursor-pointer transition-all"
+                className="input font-medium cursor-pointer"
                 value={game}
                 onChange={(e) => handleGameChange(e.target.value)}
                 disabled={isPending}
               >
                 {dynamicGames.map((g) => (
-                  <option key={g.value} value={g.value} className="bg-[#0a1424] text-white">
+                  <option key={g.value} value={g.value}>
                     {g.label}
                   </option>
                 ))}
@@ -229,18 +252,18 @@ export default function EditAccountModal({
             </div>
 
             {/* Sunucu / Bölge */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>🌐</span> {isAlbion ? 'Albion Sunucusu' : 'Sunucu / Bölge'}
               </label>
               <select
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-white font-semibold outline-none cursor-pointer transition-all"
+                className="input font-medium cursor-pointer"
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
                 disabled={isPending}
               >
                 {currentPlatformOptions.map((p) => (
-                  <option key={p.value} value={p.value} className="bg-[#0a1424] text-white">
+                  <option key={p.value} value={p.value}>
                     {p.label}
                   </option>
                 ))}
@@ -250,13 +273,13 @@ export default function EditAccountModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Hesap / Karakter Adı */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>⚡</span> {isAlbion ? 'Albion Karakter Adı' : isRiotGame ? 'Riot ID (GameName#TAG)' : 'Hesap / Karakter Adı'}
               </label>
               <input
                 type="text"
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                className="input"
                 value={riotId}
                 onChange={(e) => setRiotId(e.target.value)}
                 disabled={isPending}
@@ -265,13 +288,13 @@ export default function EditAccountModal({
             </div>
 
             {/* Giriş Kullanıcı Adı */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>🔑</span> Giriş Kullanıcı Adı (İstemci)
               </label>
               <input
                 type="text"
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+                className="input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Örn: gizli_kullanici"
@@ -282,33 +305,33 @@ export default function EditAccountModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Durum */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>📌</span> Hesap Durumu
               </label>
               <select
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-white font-semibold outline-none cursor-pointer transition-all"
+                className="input font-medium cursor-pointer"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as AccountStatus)}
                 disabled={isPending}
               >
-                <option value="available" className="bg-[#0a1424]">✅ Hazır / Mevcut</option>
-                <option value="active" className="bg-[#0a1424]">🎮 Aktif Kullanımda</option>
-                <option value="level" className="bg-[#0a1424]">⚡ Kasılıyor (Level)</option>
-                <option value="archived" className="bg-[#0a1424]">📁 Arşivlendi</option>
-                <option value="error_checking" className="bg-[#0a1424]">🚫 Ban / Hata</option>
+                <option value="available">✅ Hazır / Mevcut</option>
+                <option value="active">🎮 Aktif Kullanımda</option>
+                <option value="level">⚡ Kasılıyor (Level)</option>
+                <option value="archived">📁 Arşivlendi</option>
+                <option value="error_checking">🚫 Ban / Hata</option>
               </select>
             </div>
 
             {/* Seviye / Level */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>⚡</span> {isAlbion ? 'Level / Fame' : 'Seviye (Level)'}
               </label>
               <input
                 type="number"
                 min="0"
-                className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3 py-2.5 text-white outline-none transition-all"
+                className="input tabular-nums"
                 value={level}
                 onChange={(e) => setLevel(parseInt(e.target.value, 10) || 0)}
                 disabled={isPending}
@@ -316,19 +339,19 @@ export default function EditAccountModal({
             </div>
 
             {/* Kategori */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div>
+              <label className="label flex items-center gap-1.5">
                 <span>🏷️</span> Kategori
               </label>
               <select
-                className="bg-[#070e1a] border border-white/10 hover:border-yellow-400/40 focus:border-yellow-400 rounded-xl px-3 py-2.5 text-white font-semibold outline-none cursor-pointer transition-all"
+                className="input font-medium cursor-pointer"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 disabled={isPending}
               >
-                <option value="" className="bg-[#0a1424] text-slate-400">📁 Kategorisiz</option>
+                <option value="">📁 Kategorisiz</option>
                 {categories.map((c) => (
-                  <option key={c._id} value={c.name} className="bg-[#0a1424] text-white">
+                  <option key={c._id} value={c.name}>
                     {c.icon} {c.name}
                   </option>
                 ))}
@@ -337,48 +360,53 @@ export default function EditAccountModal({
           </div>
 
           {/* Rank / Lig / Derece */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span className="flex items-center gap-1">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className="label !mb-0 flex items-center gap-1.5">
                 <span>🏆</span> {isAlbion ? 'Albion Tier / Rank' : 'Rank / Lig / Derece'}
+              </label>
+              <span className="text-[11px] text-text-muted">
+                Hızlı şablonlara tıklayabilir veya serbest metin yazabilirsiniz
               </span>
-              <span className="text-[10px] text-slate-500 font-normal">Hızlı şablonlara tıklayabilir veya serbest metin yazabilirsiniz</span>
-            </label>
+            </div>
             <input
               type="text"
-              className="bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-white outline-none transition-all placeholder:text-slate-500 font-sans"
+              className="input"
               placeholder={isAlbion ? 'Örn: Tier 8 Elder' : 'Örn: GOLD II 45 LP'}
               value={rank}
               onChange={(e) => setRank(e.target.value)}
               disabled={isPending}
             />
             {/* Hızlı Şablon Butonları */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {(isAlbion ? albionPresetRanks : isRiotGame ? lolPresetRanks : albionPresetRanks).map((pr) => (
-                <button
-                  key={pr}
-                  type="button"
-                  onClick={() => setRank(pr)}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
-                    rank.toUpperCase().includes(pr.toUpperCase())
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                      : 'bg-white/5 text-slate-400 border-white/5 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {pr}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2">
+              {(isAlbion ? albionPresetRanks : isRiotGame ? lolPresetRanks : albionPresetRanks).map((pr) => {
+                const isSelected = rank.toUpperCase().includes(pr.toUpperCase());
+                return (
+                  <button
+                    key={pr}
+                    type="button"
+                    onClick={() => setRank(pr)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-accent-500/20 text-accent-300 border-accent-400/40 shadow-[0_0_12px_-4px_rgba(139,92,246,0.5)]'
+                        : 'bg-white/[0.04] text-text-secondary border-white/[0.07] hover:text-white hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    {pr}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Notlar */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div>
+            <label className="label flex items-center gap-1.5">
               <span>📝</span> Hesap Notları
             </label>
             <textarea
               rows={2}
-              className="w-full bg-[#070e1a] border border-white/10 hover:border-blue-400/40 focus:border-blue-400 rounded-xl px-3.5 py-2 text-white outline-none transition-all placeholder:text-slate-500 font-sans resize-none"
+              className="input resize-none"
               placeholder="Hesaba dair kişisel notlar, eşyalar, satılık bilgisi vb."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -387,11 +415,11 @@ export default function EditAccountModal({
           </div>
 
           {/* Aksiyon Butonları */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/[0.07]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              className="btn btn-ghost"
               disabled={isPending}
             >
               İptal
@@ -399,7 +427,7 @@ export default function EditAccountModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2.5 rounded-xl font-sans text-xs font-bold bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all cursor-pointer disabled:opacity-50"
+              className="btn btn-primary px-5"
             >
               {isPending ? '⏳ Kaydediliyor...' : '💾 Değişiklikleri Kaydet'}
             </button>

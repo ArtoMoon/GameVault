@@ -17,7 +17,7 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 py-6 pb-20">
+    <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
       <LandingView
         accounts={accounts}
         categories={categories}

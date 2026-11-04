@@ -1,54 +1,123 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   GameVault Design System v2
+   Koyu tema · glassmorphism · violet → cyan vurgu gradyanı
+   ========================================================================== */
+
 @theme {
-  --color-gold-100: #f0e6c8;
-  --color-gold-300: #c8a84b;
-  --color-gold-400: #b8942a;
-  --color-gold-500: #9d7a1e;
+  /* --- Yeni çekirdek palet --- */
+  --color-ink-950: #05060a;
+  --color-ink-900: #08090f;
+  --color-ink-850: #0b0d15;
+  --color-ink-800: #10131d;
+  --color-ink-700: #171b28;
+  --color-ink-600: #222738;
 
-  --color-blue-100: #c6e0ff;
-  --color-blue-400: #3d9be9;
-  --color-blue-500: #1a78c2;
-  --color-blue-600: #0f5fa3;
-  --color-blue-900: #0a1628;
+  --color-accent-300: #c4b5fd;
+  --color-accent-400: #a78bfa;
+  --color-accent-500: #8b5cf6;
+  --color-accent-600: #7c3aed;
+  --color-glow-400: #22d3ee;
+  --color-glow-500: #06b6d4;
 
-  --color-dark-100: #1e2d45;
-  --color-dark-200: #162035;
-  --color-dark-300: #0f1923;
-  --color-dark-400: #091420;
-  --color-dark-500: #050e18;
+  /* --- Eski tokenlar (geri uyumluluk; yeni palete eşlendi) --- */
+  --color-gold-100: #ede9fe;
+  --color-gold-300: #c4b5fd;
+  --color-gold-400: #a78bfa;
+  --color-gold-500: #8b5cf6;
 
-  --color-surface-1: rgba(14, 25, 45, 0.85);
-  --color-surface-2: rgba(20, 35, 60, 0.70);
-  --color-surface-border: rgba(61, 155, 233, 0.18);
-  --color-surface-border-gold: rgba(200, 168, 75, 0.25);
+  --color-dark-100: #222738;
+  --color-dark-200: #171b28;
+  --color-dark-300: #10131d;
+  --color-dark-400: #0b0d15;
+  --color-dark-500: #05060a;
 
-  --color-text-primary: #e8f0fe;
-  --color-text-secondary: #8bafd4;
-  --color-text-muted: #5a7a9a;
+  --color-surface-1: rgba(17, 19, 29, 0.72);
+  --color-surface-2: rgba(255, 255, 255, 0.035);
+  --color-surface-border: rgba(255, 255, 255, 0.08);
+  --color-surface-border-gold: rgba(167, 139, 250, 0.28);
+
+  --color-text-primary: #f4f4f7;
+  --color-text-secondary: #a1a1b5;
+  --color-text-muted: #6b6b80;
 
   --color-status-stock: #22c55e;
   --color-status-sold: #ef4444;
   --color-status-active: #3b82f6;
   --color-status-error: #f59e0b;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* --- Animasyonlar --- */
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.3s ease-out both;
+  --animate-scale-in: scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to   { background-position: 200% 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
 }
 
 @layer base {
+  html {
+    color-scheme: dark;
+  }
+
   body {
     font-family: var(--font-sans);
-    background-color: var(--color-dark-500);
-    background-image:
-      radial-gradient(ellipse at 20% 0%, rgba(61, 155, 233, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, rgba(200, 168, 75, 0.06) 0%, transparent 50%);
-    background-attachment: fixed;
+    background-color: var(--color-ink-950);
     color: var(--color-text-primary);
     min-height: 100vh;
-    line-height: 1.6;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  /* Arka plan: yumuşak aurora + ince ızgara dokusu */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 85% -10%, rgba(139, 92, 246, 0.14), transparent 60%),
+      radial-gradient(50rem 35rem at -10% 110%, rgba(6, 182, 212, 0.10), transparent 60%),
+      radial-gradient(30rem 20rem at 40% 40%, rgba(99, 102, 241, 0.05), transparent 70%);
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 75%);
   }
 
   /* Form alanları ve seçilebilir metinlerin seçilebilmesi */
@@ -57,29 +126,323 @@
     -webkit-user-select: text;
   }
 
-  /* Şık masaüstü koyu kaydırma çubuğu (Custom Desktop Scrollbar) */
+  ::selection {
+    background: rgba(139, 92, 246, 0.35);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(167, 139, 250, 0.7);
+    outline-offset: 2px;
+  }
+
+  select option {
+    background: var(--color-ink-800);
+    color: var(--color-text-primary);
+  }
+
+  /* İnce masaüstü kaydırma çubuğu */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
-
   ::-webkit-scrollbar-track {
-    background: rgba(5, 14, 24, 0.6);
+    background: transparent;
   }
-
   ::-webkit-scrollbar-thumb {
-    background: rgba(61, 155, 233, 0.25);
-    border-radius: 4px;
-    border: 2px solid transparent;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    border: 3px solid transparent;
     background-clip: padding-box;
   }
-
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(61, 155, 233, 0.5);
+    background: rgba(167, 139, 250, 0.35);
+    border: 3px solid transparent;
+    background-clip: padding-box;
   }
 }
 
-/* Masaüstü pencere sürükleme bölgeleri ve animasyonlar */
+/* ==========================================================================
+   Bileşen sınıfları — tüm ekranlarda ortak görsel dil
+   ========================================================================== */
+@layer components {
+  /* --- Yüzeyler --- */
+  .glass {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  }
+  .glass-strong {
+    background: linear-gradient(180deg, rgba(23, 27, 40, 0.92), rgba(13, 15, 23, 0.92));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 30px 80px -20px rgba(0, 0, 0, 0.8);
+  }
+  .card {
+    position: relative;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .card-interactive {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s, box-shadow 0.25s, background 0.2s;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(167, 139, 250, 0.3);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 20px 40px -20px rgba(139, 92, 246, 0.35);
+  }
+
+  /* --- Butonlar --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding: 0 0.95rem;
+    border-radius: 0.65rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.2s, transform 0.1s;
+    border: 1px solid transparent;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-sm {
+    height: 1.875rem;
+    padding: 0 0.7rem;
+    font-size: 0.75rem;
+    border-radius: 0.55rem;
+  }
+  .btn-lg {
+    height: 2.75rem;
+    padding: 0 1.25rem;
+    font-size: 0.875rem;
+    border-radius: 0.8rem;
+  }
+  .btn-icon {
+    width: 2.25rem;
+    padding: 0;
+  }
+  .btn-primary {
+    color: #fff;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 55%, #06b6d4 130%);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 24px -10px rgba(139, 92, 246, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 10px 30px -8px rgba(139, 92, 246, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    filter: brightness(1.08);
+  }
+  .btn-secondary {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .btn-ghost {
+    color: var(--color-text-secondary);
+    background: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .btn-danger {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+  .btn-danger:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.75);
+    border-color: rgba(239, 68, 68, 0.9);
+  }
+  .btn-success {
+    color: #86efac;
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+  .btn-success:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(34, 197, 94, 0.7);
+  }
+
+  /* --- Form elemanları --- */
+  .input {
+    width: 100%;
+    height: 2.5rem;
+    padding: 0 0.85rem;
+    border-radius: 0.65rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-primary);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  textarea.input {
+    height: auto;
+    padding: 0.6rem 0.85rem;
+    line-height: 1.5;
+  }
+  .input::placeholder {
+    color: var(--color-text-muted);
+  }
+  .input:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  .input:focus {
+    outline: none;
+    background: rgba(0, 0, 0, 0.35);
+    border-color: rgba(167, 139, 250, 0.6);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+  }
+  .label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* --- Rozet / çip --- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.5rem;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* --- Segment kontrol (sekme / görünüm değiştirici) --- */
+  .segmented {
+    display: inline-flex;
+    padding: 0.2rem;
+    gap: 0.15rem;
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .segmented > button,
+  .segmented > a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.9rem;
+    padding: 0 0.75rem;
+    border-radius: 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .segmented > button:hover,
+  .segmented > a:hover {
+    color: var(--color-text-primary);
+  }
+  .segmented > [data-active="true"] {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  }
+
+  /* --- Modal --- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(3, 4, 8, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: var(--animate-fade-in);
+  }
+  .modal-panel {
+    position: relative;
+    width: 100%;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    border-radius: 1.25rem;
+    background: linear-gradient(180deg, rgba(23, 27, 40, 0.96), rgba(12, 14, 22, 0.97));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 40px 120px -20px rgba(0, 0, 0, 0.9),
+      0 0 0 1px rgba(139, 92, 246, 0.05);
+    animation: var(--animate-scale-in);
+  }
+
+  /* --- Tipografi yardımcıları --- */
+  .gradient-text {
+    background: linear-gradient(120deg, #ffffff 0%, #c4b5fd 45%, #67e8f9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent-400);
+  }
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    color: #fff;
+  }
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  }
+
+  /* --- Yükleniyor iskeleti --- */
+  .skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 100%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+}
+
+/* Masaüstü pencere sürükleme bölgeleri ve yardımcılar */
 @layer utilities {
   .animate-spin-slow {
     animation: spin 0.8s linear infinite;
@@ -100,5 +463,25 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Liste öğelerinde kademeli giriş animasyonu için */
+  .stagger > * {
+    animation: var(--animate-fade-up);
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(8) { animation-delay: 280ms; }
+  .stagger > *:nth-child(n + 9) { animation-delay: 320ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

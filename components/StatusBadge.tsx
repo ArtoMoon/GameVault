@@ -22,38 +22,38 @@ interface StatusStyle {
 const STATUS_STYLES: Record<AccountStatus, StatusStyle> = {
   available: {
     key: 'status_available',
-    bgClass: 'bg-green-500/10',
-    textClass: 'text-green-400',
-    dotClass: 'bg-green-500',
-    borderClass: 'border-green-500/20',
+    bgClass: 'bg-emerald-500/10 hover:bg-emerald-500/15',
+    textClass: 'text-emerald-300',
+    dotClass: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.65)]',
+    borderClass: 'border-emerald-500/20',
   },
   archived: {
     key: 'status_archived',
-    bgClass: 'bg-red-500/10',
-    textClass: 'text-red-400',
-    dotClass: 'bg-red-500',
-    borderClass: 'border-red-500/20',
+    bgClass: 'bg-zinc-500/10 hover:bg-zinc-500/15',
+    textClass: 'text-zinc-400',
+    dotClass: 'bg-zinc-400',
+    borderClass: 'border-zinc-500/20',
   },
   active: {
     key: 'status_active',
-    bgClass: 'bg-blue-500/10',
-    textClass: 'text-blue-400',
-    dotClass: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]',
-    borderClass: 'border-blue-500/30',
+    bgClass: 'bg-sky-500/10 hover:bg-sky-500/15',
+    textClass: 'text-sky-300',
+    dotClass: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.65)]',
+    borderClass: 'border-sky-500/25',
   },
   level: {
     key: 'status_level',
-    bgClass: 'bg-purple-500/10',
-    textClass: 'text-purple-400',
-    dotClass: 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]',
-    borderClass: 'border-purple-500/30',
+    bgClass: 'bg-amber-500/10 hover:bg-amber-500/15',
+    textClass: 'text-amber-300',
+    dotClass: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]',
+    borderClass: 'border-amber-500/25',
   },
   error_checking: {
     key: 'status_error_checking',
-    bgClass: 'bg-rose-500/10',
-    textClass: 'text-rose-400',
-    dotClass: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]',
-    borderClass: 'border-rose-500/30',
+    bgClass: 'bg-red-500/10 hover:bg-red-500/15',
+    textClass: 'text-red-300',
+    dotClass: 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.65)]',
+    borderClass: 'border-red-500/25',
   },
 };
 
@@ -67,12 +67,14 @@ export default function StatusBadge({ status, onClick, className = '' }: StatusB
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.bgClass} ${config.textClass} ${config.borderClass} ${onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''} ${className}`}
+      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold tracking-tight border transition-colors select-none ${config.bgClass} ${config.textClass} ${config.borderClass} ${
+        onClick ? 'cursor-pointer' : ''
+      } ${className}`}
       onClick={() => onClick?.(status)}
       title={label}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dotClass}`} />
-      {label}
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${config.dotClass}`} />
+      <span className="truncate">{label}</span>
     </span>
   );
 }

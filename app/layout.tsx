@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import Navbar from '@/components/Navbar';
+import { getPlatforms } from '@/app/actions/platforms';
+import Sidebar from '@/components/Sidebar';
 import OnboardingModal from '@/components/OnboardingModal';
 import './globals.css';
 
@@ -13,24 +14,28 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'MyLoL – Kişisel LoL Hesap Dashboard',
-    template: '%s | MyLoL',
+    default: 'GameVault – Universal Gaming Dashboard',
+    template: '%s | GameVault',
   },
   description:
-    'League of Legends hesaplarınızı Riot API ile gerçek zamanlı takip edin. Level, rank ve aktivite durumunu izleyin.',
-  keywords: ['League of Legends', 'LoL hesap', 'kişisel dashboard', 'Riot API', 'rank takip'],
+    'Tüm oyun hesaplarınızı tek bir komut merkezinde yönetin. Riot, Albion, Steam ve daha fazlası için canlı senkronizasyon.',
+  keywords: ['GameVault', 'League of Legends', 'Albion Online', 'hesap yöneticisi', 'Riot API', 'rank takip'],
   icons: {
     icon: '/icon.png',
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  const platforms = await getPlatforms();
+
   return (
     <html lang="tr" className={inter.variable}>
       <body>
         <LanguageProvider>
-          <Navbar />
-          <main>{children}</main>
+          <div className="flex min-h-screen">
+            <Sidebar platforms={platforms} />
+            <main className="flex-1 min-w-0 h-screen overflow-y-auto">{children}</main>
+          </div>
           <OnboardingModal />
         </LanguageProvider>
       </body>

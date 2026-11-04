@@ -23,37 +23,31 @@ export default function DashboardHeader({
   const { t } = useLanguage();
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 md:p-6 mb-6 bg-gradient-to-r from-[#0a1424] via-[#070e1a] to-[#040810] rounded-3xl border border-white/5 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-      {/* Arka plan hafif neon parıltısı */}
-      <div className="absolute top-0 right-1/4 w-96 h-32 bg-blue-500/5 blur-3xl pointer-events-none rounded-full" />
-      <div className="absolute bottom-0 left-10 w-64 h-24 bg-amber-500/5 blur-3xl pointer-events-none rounded-full" />
-
+    <div className="flex items-end justify-between gap-4 flex-wrap pb-2">
       {/* Sol Bölüm: Başlık ve Canlı Bilgi */}
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 rounded-full text-[11px] font-bold tracking-wider uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2.5">
+          <span className="eyebrow flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-pulse" />
             {t('riot_client_manager')}
           </span>
-          <span className="text-[11px] text-slate-500 font-mono">v0.2.1</span>
+          <span className="chip tabular-nums text-[10px] !h-5 !px-2">v0.2.1</span>
         </div>
 
-        <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+        <h1 className="page-title flex items-center gap-2 flex-wrap">
           <span>{t('dashboard_title_1')}</span>
-          <span className="bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
-            {t('dashboard_title_2')}
-          </span>
+          <span className="gradient-text">{t('dashboard_title_2')}</span>
         </h1>
 
-        <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-2">
+        <p className="text-sm text-text-secondary flex items-center gap-2 flex-wrap">
           <span>{t('dashboard_subtitle')}</span>
-          <span className="text-slate-600">•</span>
-          <span className="text-blue-400 font-medium font-mono">{totalAccounts} hesap kayıtlı</span>
+          <span className="text-text-muted">•</span>
+          <span className="text-accent-300 font-medium tabular-nums">{totalAccounts} hesap kayıtlı</span>
         </p>
       </div>
 
       {/* Sağ Bölüm: Hızlı Aksiyon Komut Grubu */}
-      <div className="flex flex-wrap items-center gap-2.5 relative z-10">
+      <div className="flex flex-wrap items-center gap-2.5">
         {/* Tümünü Eşitle Butonu */}
         <AccountSyncButton />
 
@@ -62,10 +56,13 @@ export default function DashboardHeader({
           <button
             type="button"
             onClick={onOpenCategories}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#0e192d] hover:bg-[#152542] text-slate-300 hover:text-white border border-white/10 hover:border-blue-400/40 transition-all cursor-pointer shadow-sm hover:-translate-y-0.5 active:translate-y-0"
+            className="btn btn-secondary"
             title="Kategorileri Yönet"
           >
-            <span>⚙️</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
             <span>{t('manage_categories') || 'Kategoriler'}</span>
           </button>
         )}
@@ -75,13 +72,19 @@ export default function DashboardHeader({
           <button
             type="button"
             onClick={onToggleAdd}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md hover:-translate-y-0.5 active:translate-y-0 ${
-              isAddOpen
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-2 ring-yellow-400/50'
-                : 'bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 shadow-[0_0_15px_rgba(234,179,8,0.3)]'
-            }`}
+            className={`btn ${isAddOpen ? 'btn-secondary' : 'btn-primary'}`}
           >
-            <span>{isAddOpen ? '✕' : '➕'}</span>
+            {isAddOpen ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            )}
             <span>{isAddOpen ? 'Formu Kapat' : t('modal_add_title')}</span>
           </button>
         )}
