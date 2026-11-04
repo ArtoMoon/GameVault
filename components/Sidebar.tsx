@@ -123,30 +123,7 @@ export default function Sidebar({ platforms }: SidebarProps) {
                     accent={p.color}
                     icon={<span className="text-base leading-none">{p.icon}</span>}
                     label={p.name}
-                    badge={p.games.length > 0 ? String(p.games.length) : undefined}
                   />
-                  {active && !collapsed && p.games.length > 0 && (
-                    <div className="ml-[22px] mt-0.5 mb-1.5 pl-3 border-l border-white/[0.07] space-y-0.5 animate-fade-in">
-                      {p.games.map((g) => {
-                        const href = `${base}/${g.slug}`;
-                        const gameActive = pathname === href;
-                        return (
-                          <Link
-                            key={g.slug}
-                            href={href}
-                            className={`flex items-center gap-2 h-8 px-2.5 rounded-lg text-[12.5px] transition-colors ${
-                              gameActive
-                                ? 'text-white bg-white/[0.06]'
-                                : 'text-text-muted hover:text-text-primary hover:bg-white/[0.03]'
-                            }`}
-                          >
-                            <span className="text-sm leading-none">{g.icon}</span>
-                            <span className="truncate">{g.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}

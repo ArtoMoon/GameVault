@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AccountData } from '@/app/actions/accounts';
 import type { AccountStatus } from '@/models/Account';
-import { getCategories, CategoryData } from '@/app/actions/categories';
-import { PlatformData } from '@/app/actions/platforms';
+import { getCategories, createCategory, CategoryData } from '@/app/actions/categories';
+import { getPlatforms, PlatformData } from '@/app/actions/platforms';
 import AccountTable from '@/components/AccountTable';
 import AddAccountForm from '@/components/AddAccountForm';
 import AccountSyncButton from '@/components/AccountSyncButton';
 import CategoryManagerModal from '@/components/CategoryManagerModal';
+import PlatformManagerModal from '@/components/PlatformManagerModal';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export interface GameAccountsViewProps {
@@ -18,9 +19,21 @@ export interface GameAccountsViewProps {
   initialCategories?: CategoryData[];
   initialPlatforms?: PlatformData[];
   platformSlug: string;
-  gameSlug: string;
+  gameSlug?: string;
   initialAddOpen?: boolean;
 }
+
+const QUICK_CATEGORY_COLORS = [
+  '#8b5cf6',
+  '#3b82f6',
+  '#10b981',
+  '#eab308',
+  '#ef4444',
+  '#ec4899',
+  '#06b6d4',
+];
+
+const QUICK_CATEGORY_ICONS = ['🏷️', '⭐', '⚡', '🏆', '🎯', '⚔️', '🔥', '💎'];
 
 export default function GameAccountsView({
   accounts,
@@ -37,9 +50,18 @@ export default function GameAccountsView({
   const [platformFilter, setPlatformFilter] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [categories, setCategories] = useState<CategoryData[]>(initialCategories);
+  const [platforms, setPlatforms] = useState<PlatformData[]>(initialPlatforms);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(initialAddOpen);
-  const [, startTransition] = useTransition();
+
+  // Hızlı satır içi kategori ekleme durumu
+  const [isQuickCatOpen, setIsQuickCatOpen] = useState(false);
+  const [quickCatName, setQuickCatName] = useState('');
+  const [quickCatIcon, setQuickCatIcon] = useState('🏷️');
+  const [quickCatColor, setQuickCatColor] = useState('#8b5cf6');
+  const [quickCatError, setQuickCatError] = useState('');
+  const [isPending, startTransition] = useTransition();
 
   const refreshCategories = () => {
     startTransition(async () => {
@@ -48,30 +70,89 @@ export default function GameAccountsView({
     });
   };
 
+  const refreshPlatforms = () => {
+    startTransition(async () => {
+      const fresh = await getPlatforms();
+      setPlatforms(fresh);
+      router.refresh();
+    });
+  };
+
+  const handleQuickCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = quickCatName.trim();
+    if (!clean) {
+      setQuickCatError('Kategori adı girin.');
+      return;
+    }
+    setQuickCatError('');
+    startTransition(async () => {
+      const res = await createCategory(clean, quickCatColor, quickCatIcon, '');
+      if (!res.success) {
+        setQuickCatError(res.error || 'Kategori eklenemedi.');
+        return;
+      }
+      const fresh = await getCategories();
+      setCategories(fresh);
+      setCategoryFilter(clean);
+      setQuickCatName('');
+      setIsQuickCatOpen(false);
+    });
+  };
+
+  // Platformu bul (slug doğrudan eşleşebilir veya içindeki oyun slug'ı eşleşebilir)
+  const normalizedSlug = (platformSlug || 'riot').toLowerCase();
   const currentPlatform =
-    initialPlatforms.find((p) => p.slug === platformSlug) ||
-    initialPlatforms[0] || {
-      slug: platformSlug || 'riot',
+    platforms.find((p) => p.slug.toLowerCase() === normalizedSlug) ||
+    platforms.find((p) => p.games.some((g) => g.slug.toLowerCase() === normalizedSlug)) ||
+    platforms[0] || {
+      _id: 'default-riot',
+      slug: normalizedSlug,
       name: 'Riot Games',
       icon: '🔴',
       color: '#ef4444',
       games: [],
     };
 
-  const currentGame =
-    currentPlatform.games.find((g) => g.slug === gameSlug) || {
-      slug: gameSlug || 'lol',
-      name: gameSlug ? gameSlug.toUpperCase() : 'League of Legends',
-      icon: '🎮',
-      description: 'Hesap takibi.',
-    };
+  // Bu platforma ait tüm oyun anahtarlarını topla (tek birleşik görünüm için)
+  const platformGameSlugs = new Set<string>([
+    currentPlatform.slug.toLowerCase(),
+    ...currentPlatform.games.map((g) => g.slug.toLowerCase()),
+  ]);
+  if (currentPlatform.slug.toLowerCase() === 'riot' || normalizedSlug === 'lol') {
+    platformGameSlugs.add('lol');
+    platformGameSlugs.add('valorant');
+    platformGameSlugs.add('tft');
+  }
+  if (currentPlatform.slug.toLowerCase().includes('albion')) {
+    platformGameSlugs.add('albion');
+  }
+  if (currentPlatform.slug.toLowerCase() === 'steam') {
+    platformGameSlugs.add('cs2');
+    platformGameSlugs.add('dota2');
+  }
 
-  // Seçili oyuna göre filtrelenmiş hesaplar
-  const scopedAccounts = accounts.filter((a) => {
-    const matchesGame = (a.game || 'lol').toLowerCase() === currentGame.slug.toLowerCase();
+  const belongsToCurrentPlatform = (a: AccountData) => {
+    const accGame = (a.game || 'lol').toLowerCase();
+    const accPlat = (a.platform || '').toLowerCase();
+    if (gameSlug) {
+      return accGame === gameSlug.toLowerCase();
+    }
+    return platformGameSlugs.has(accGame) || accPlat === currentPlatform.slug.toLowerCase();
+  };
+
+  const platformAccounts = accounts.filter(belongsToCurrentPlatform);
+
+  // Kategori filtresi uygulanmış hesaplar
+  const scopedAccounts = platformAccounts.filter((a) => {
     const matchesCat = !categoryFilter || a.category === categoryFilter;
-    return matchesGame && matchesCat;
+    return matchesCat;
   });
+
+  const defaultGameSlug =
+    gameSlug ||
+    currentPlatform.games[0]?.slug ||
+    (currentPlatform.slug.includes('albion') ? 'albion' : 'lol');
 
   const total = scopedAccounts.length;
   const available = scopedAccounts.filter((a) => a.status === 'available').length;
@@ -88,7 +169,7 @@ export default function GameAccountsView({
 
   return (
     <div className="space-y-6 animate-fade-up">
-      {/* ── 1. ÜST GEZİNME VE GERİ DÖNÜŞ BARI ── */}
+      {/* ── 1. ÜST GEZİNME VE PLATFORM SEÇİCİ BARI ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Breadcrumb */}
         <nav aria-label="breadcrumb" className="flex flex-wrap items-center gap-2 text-xs font-medium text-text-muted">
@@ -100,14 +181,6 @@ export default function GameAccountsView({
             <span>{t('nav_home')}</span>
           </Link>
           <span className="text-white/20">/</span>
-          <Link
-            href={`/platform/${currentPlatform.slug}`}
-            className="hover:text-white transition-colors flex items-center gap-1 text-text-secondary"
-          >
-            <span>{currentPlatform.icon}</span>
-            <span>{currentPlatform.name}</span>
-          </Link>
-          <span className="text-white/20">/</span>
           <span
             className="chip text-white font-semibold"
             style={{
@@ -115,25 +188,59 @@ export default function GameAccountsView({
               borderColor: `${accentColor}45`,
             }}
           >
-            <span>{currentGame.icon}</span>
-            <span>{currentGame.name}</span>
+            <span>{currentPlatform.icon}</span>
+            <span>{currentPlatform.name}</span>
             <span className="text-[10px] px-1.5 rounded-full bg-white/10 text-white tabular-nums">
-              {total}
+              {platformAccounts.length}
             </span>
           </span>
+          {categoryFilter && (
+            <>
+              <span className="text-white/20">/</span>
+              <span className="chip !bg-accent-500/20 !border-accent-400/40 !text-white font-semibold">
+                <span>🏷️ {categoryFilter}</span>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('')}
+                  className="ml-1 hover:text-red-300 cursor-pointer"
+                  title="Kategori filtresini kaldır"
+                >
+                  ✕
+                </button>
+              </span>
+            </>
+          )}
         </nav>
 
-        {/* Platforma Geri Dön Butonu */}
-        <Link
-          href={`/platform/${currentPlatform.slug}`}
-          className="btn btn-secondary btn-sm self-start sm:self-auto"
-        >
-          <span>←</span>
-          <span>{currentPlatform.name} Oyunlarına Dön</span>
-        </Link>
+        {/* Hızlı Platform Geçiş Sekmeleri */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {platforms.map((p) => {
+            const isCurrent = p.slug === currentPlatform.slug;
+            return (
+              <Link
+                key={p._id}
+                href={`/platform/${p.slug}`}
+                className={`btn btn-sm shrink-0 ${
+                  isCurrent ? 'btn-primary' : 'btn-secondary'
+                }`}
+              >
+                <span>{p.icon}</span>
+                <span>{p.name}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setIsPlatformModalOpen(true)}
+            className="btn btn-ghost btn-sm shrink-0"
+            title="Platform Ekle / Yönet"
+          >
+            <span>⚙️ Platformlar</span>
+          </button>
+        </div>
       </div>
 
-      {/* ── 2. OYUN KOMUTA BAŞLIĞI ── */}
+      {/* ── 2. TEKİL PLATFORM KOMUTA BAŞLIĞI ── */}
       <div className="card relative overflow-hidden p-6">
         <div
           className="absolute inset-0 pointer-events-none"
@@ -155,18 +262,18 @@ export default function GameAccountsView({
                 borderColor: `${accentColor}45`,
               }}
             >
-              {currentGame.icon}
+              {currentPlatform.icon}
             </div>
             <div>
-              <div className="eyebrow mb-1">{currentPlatform.name}</div>
+              <div className="eyebrow mb-1">PLATFORM KASASI</div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="page-title">{currentGame.name} Hesapları</h1>
+                <h1 className="page-title">{currentPlatform.name}</h1>
                 <span className="chip tabular-nums !text-white">
                   {total} Hesap
                 </span>
               </div>
               <p className="text-sm text-text-secondary mt-1">
-                {currentPlatform.name} • {currentGame.description || `${currentGame.name} hesap ve envanter yönetimi`}
+                {currentPlatform.description || `${currentPlatform.name} hesaplarınızı kategorilere ayırarak tek ekrandan yönetin.`}
               </p>
             </div>
           </div>
@@ -179,10 +286,10 @@ export default function GameAccountsView({
               type="button"
               onClick={() => setIsCatModalOpen(true)}
               className="btn btn-secondary"
-              title="Kategorileri Yönet"
+              title="Kategorileri Ekle / Düzenle"
             >
-              <span>⚙️</span>
-              <span>{t('manage_categories') || 'Kategoriler'}</span>
+              <span>🏷️</span>
+              <span>{t('manage_categories') || 'Kategorileri Yönet'}</span>
             </button>
 
             <button
@@ -197,14 +304,172 @@ export default function GameAccountsView({
         </div>
       </div>
 
-      {/* ── 3. AÇILIR / KAPANIR HESAP EKLEME FORMU ── */}
+      {/* ── 3. KATEGORİ SEKMELERİ VE HIZLI KATEGORİ EKLEME BARI (HER ZAMAN GÖRÜNÜR) ── */}
+      <div className="card p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 py-0.5">
+            <span className="text-xs font-bold text-text-muted uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+              <span>🏷️</span> Kategoriler:
+            </span>
+
+            {/* Tümü */}
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('')}
+              className={`h-8 px-3.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
+                !categoryFilter
+                  ? 'bg-accent-500/20 text-white border-accent-400/50 shadow-[0_0_20px_-6px_rgba(139,92,246,0.5)]'
+                  : 'bg-white/[0.03] border-white/[0.07] text-text-secondary hover:text-white hover:bg-white/[0.06]'
+              }`}
+            >
+              <span>🗂️</span>
+              <span>Tümü</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/35 font-mono tabular-nums text-white/80 leading-none">
+                {platformAccounts.length}
+              </span>
+            </button>
+
+            {/* Mevcut Kategoriler */}
+            {categories.map((c) => {
+              const isSelected = categoryFilter === c.name;
+              const count = platformAccounts.filter((a) => a.category === c.name).length;
+
+              return (
+                <button
+                  key={c._id}
+                  type="button"
+                  onClick={() => setCategoryFilter(isSelected ? '' : c.name)}
+                  className={`h-8 px-3.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
+                    isSelected
+                      ? 'text-white shadow-sm'
+                      : 'bg-white/[0.03] border-white/[0.07] text-text-secondary hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                  style={
+                    isSelected
+                      ? {
+                          backgroundColor: `${c.color || '#8b5cf6'}28`,
+                          borderColor: c.color || '#8b5cf6',
+                        }
+                      : undefined
+                  }
+                >
+                  <span>{c.icon || '🏷️'}</span>
+                  <span>{c.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/35 font-mono tabular-nums text-white/80 leading-none">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* + Kategori Ekle Butonu */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsQuickCatOpen((prev) => !prev);
+                setQuickCatError('');
+              }}
+              className={`h-8 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border border-dashed ${
+                isQuickCatOpen
+                  ? 'bg-accent-500/20 text-accent-200 border-accent-400/60'
+                  : 'border-accent-400/35 text-accent-300 hover:text-white hover:bg-accent-500/15 hover:border-accent-400/60'
+              }`}
+            >
+              <span>{isQuickCatOpen ? '✕' : '➕'}</span>
+              <span>Kategori Ekle</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsCatModalOpen(true)}
+            className="btn btn-ghost btn-sm shrink-0"
+            title="Tüm Kategorileri Düzenle / Sil"
+          >
+            <span>⚙️ Düzenle</span>
+          </button>
+        </div>
+
+        {/* Satır İçi Hızlı Kategori Oluşturma Alanı */}
+        {isQuickCatOpen && (
+          <form
+            onSubmit={handleQuickCreateCategory}
+            className="pt-3 border-t border-white/[0.07] flex flex-wrap items-center gap-2.5 animate-fade-in"
+          >
+            {/* İkon Seçici */}
+            <div className="flex items-center gap-1 bg-ink-900/80 border border-white/[0.08] rounded-xl p-1">
+              {QUICK_CATEGORY_ICONS.map((ic) => (
+                <button
+                  key={ic}
+                  type="button"
+                  onClick={() => setQuickCatIcon(ic)}
+                  className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-colors cursor-pointer ${
+                    quickCatIcon === ic
+                      ? 'bg-accent-500/25 border border-accent-400/50'
+                      : 'hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {ic}
+                </button>
+              ))}
+            </div>
+
+            {/* Kategori Adı */}
+            <input
+              type="text"
+              value={quickCatName}
+              onChange={(e) => setQuickCatName(e.target.value)}
+              placeholder="Kategori adı (Örn: Main, Smurf, TR Dereceli, Valorant...)"
+              className="input !w-64 !h-9 text-xs"
+              autoFocus
+            />
+
+            {/* Renk Seçici */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-ink-900/80 border border-white/[0.08]">
+              {QUICK_CATEGORY_COLORS.map((clr) => (
+                <button
+                  key={clr}
+                  type="button"
+                  onClick={() => setQuickCatColor(clr)}
+                  className={`w-5 h-5 rounded-full transition-transform cursor-pointer ${
+                    quickCatColor === clr ? 'scale-125 ring-2 ring-white/80' : 'opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: clr }}
+                />
+              ))}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="btn btn-primary btn-sm !h-9"
+            >
+              <span>✓ Ekle</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsQuickCatOpen(false)}
+              className="btn btn-ghost btn-sm !h-9"
+            >
+              İptal
+            </button>
+
+            {quickCatError && (
+              <span className="text-xs text-red-400 font-medium">{quickCatError}</span>
+            )}
+          </form>
+        )}
+      </div>
+
+      {/* ── 4. AÇILIR / KAPANIR HESAP EKLEME FORMU ── */}
       {isAddOpen && (
         <div className="glass rounded-2xl p-5 md:p-6 animate-scale-in relative overflow-hidden">
           <div className="flex items-center justify-between pb-3.5 mb-5 border-b border-white/[0.07]">
             <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
               <h3 className="text-sm font-bold text-white tracking-tight">
-                {currentPlatform.name} ({currentGame.name}) İçin {t('modal_add_title') || 'Yeni Hesap Ekle'}
+                {currentPlatform.name} İçin {t('modal_add_title') || 'Yeni Hesap Ekle'}
               </h3>
             </div>
             <button
@@ -219,8 +484,8 @@ export default function GameAccountsView({
           <AddAccountForm
             categories={categories}
             onCategoriesChange={refreshCategories}
-            platformsList={initialPlatforms}
-            defaultGame={currentGame.slug}
+            platformsList={platforms}
+            defaultGame={defaultGameSlug}
             onAccountAdded={() => {
               router.refresh();
             }}
@@ -228,7 +493,7 @@ export default function GameAccountsView({
         </div>
       )}
 
-      {/* ── 4. KOMPAKT HUD METRİK ŞERİDİ ── */}
+      {/* ── 5. KOMPAKT HUD METRİK ŞERİDİ ── */}
       <div className="stagger grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Toplam */}
         <button
@@ -333,74 +598,36 @@ export default function GameAccountsView({
         </button>
       </div>
 
-      {/* ── 5. KATEGORİ FİLTRELEME ARAÇ ÇUBUĞU (SEGMENTED) ── */}
-      {categories.length > 0 && (
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-          <span className="text-xs font-semibold text-text-muted uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-            <span>🏷️</span> Kategori:
-          </span>
-          <div className="segmented overflow-x-auto no-scrollbar">
-            <button
-              type="button"
-              data-active={!categoryFilter}
-              onClick={() => setCategoryFilter('')}
-              className="shrink-0 tabular-nums"
-            >
-              Tümü ({accounts.filter((a) => (a.game || 'lol').toLowerCase() === currentGame.slug.toLowerCase()).length})
-            </button>
-
-            {categories.map((c) => {
-              const isSelected = categoryFilter === c.name;
-              const count = accounts.filter(
-                (a) => (a.game || 'lol').toLowerCase() === currentGame.slug.toLowerCase() && a.category === c.name
-              ).length;
-
-              return (
-                <button
-                  key={c._id}
-                  type="button"
-                  data-active={isSelected}
-                  onClick={() => setCategoryFilter(isSelected ? '' : c.name)}
-                  className="shrink-0 tabular-nums"
-                  style={
-                    isSelected && c.color
-                      ? {
-                          backgroundColor: `${c.color}28`,
-                          color: '#fff',
-                        }
-                      : undefined
-                  }
-                >
-                  <span>{c.icon}</span>
-                  <span>{c.name}</span>
-                  <span className="text-[11px] opacity-70">({count})</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* ── 6. HESAP TABLOSU / LİSTESİ ── */}
       <AccountTable
         accounts={scopedAccounts}
         categories={categories}
-        platformsList={initialPlatforms}
+        platformsList={platforms}
+        hideCategoryBar
+        onOpenCategoriesModal={() => setIsCatModalOpen(true)}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         platformFilter={platformFilter}
         onPlatformFilterChange={setPlatformFilter}
         categoryFilter={categoryFilter}
         onCategoryFilterChange={setCategoryFilter}
-        gameSlug={currentGame.slug}
+        gameSlug={defaultGameSlug}
       />
 
-      {/* ── 7. KATEGORİ MODALI ── */}
+      {/* ── 7. KATEGORİ YÖNETİM MODALI ── */}
       <CategoryManagerModal
         isOpen={isCatModalOpen}
         onClose={() => setIsCatModalOpen(false)}
         categories={categories}
         onCategoriesChange={refreshCategories}
+      />
+
+      {/* ── 8. PLATFORM YÖNETİM MODALI ── */}
+      <PlatformManagerModal
+        isOpen={isPlatformModalOpen}
+        onClose={() => setIsPlatformModalOpen(false)}
+        platforms={platforms}
+        onPlatformsChange={refreshPlatforms}
       />
     </div>
   );

@@ -34,9 +34,6 @@ export default function LandingView({
     });
   };
 
-  const getGameCount = (slug: string) =>
-    accounts.filter((a) => (a.game || 'lol').toLowerCase() === slug.toLowerCase()).length;
-
   const readyCount = accounts.filter((a) => a.status === 'available').length;
   const activeCount = accounts.filter((a) => a.status === 'active').length;
   const levelCount = accounts.filter((a) => a.status === 'level').length;
@@ -88,12 +85,12 @@ export default function LandingView({
 
             {/* Hızlı Aksiyon Butonları */}
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <Link href="/platform/lol" className="btn btn-primary btn-lg">
+              <Link href={`/platform/${platforms[0]?.slug || 'riot'}`} className="btn btn-primary btn-lg">
                 <span>🎮</span>
                 <span>{t('go_to_accounts')}</span>
               </Link>
 
-              <Link href="/platform/lol?add=true" className="btn btn-secondary btn-lg">
+              <Link href={`/platform/${platforms[0]?.slug || 'riot'}?add=true`} className="btn btn-secondary btn-lg">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -181,7 +178,7 @@ export default function LandingView({
               <span>Platform Ekle / Yönet</span>
             </button>
             <Link
-              href="/platform/riot/lol"
+              href={`/platform/${platforms[0]?.slug || 'riot'}`}
               className="btn btn-ghost btn-sm text-accent-300 hover:text-white"
             >
               <span>Tüm Hesaplar ({accounts.length}) →</span>
@@ -192,16 +189,19 @@ export default function LandingView({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 stagger">
           {platforms.map((p) => {
             const platformTargetUrl = `/platform/${p.slug}`;
-            const totalAccountsInPlatform = accounts.filter(
+            const platformAccounts = accounts.filter(
               (a) =>
                 (a.platform || '').toLowerCase() === p.slug.toLowerCase() ||
+                (a.game || '').toLowerCase() === p.slug.toLowerCase() ||
                 p.games.some((g) => g.slug.toLowerCase() === (a.game || '').toLowerCase())
-            ).length;
+            );
+            const totalAccountsInPlatform = platformAccounts.length;
             const accentColor = p.color || '#8b5cf6';
 
             return (
-              <div
+              <Link
                 key={p.slug}
+                href={platformTargetUrl}
                 className="group card card-interactive p-6 flex flex-col justify-between overflow-hidden"
               >
                 {/* Yumuşak platform rengi parıltısı */}
@@ -231,47 +231,45 @@ export default function LandingView({
                     {p.name}
                   </h3>
                   <p className="text-xs text-text-secondary mt-1.5 leading-relaxed min-h-[36px]">
-                    {p.description || `${p.name} platformundaki oyunlar ve hesaplar`}
+                    {p.description || `${p.name} hesaplarınızı ve kategorilerinizi tek ekrandan yönetin.`}
                   </p>
 
-                  {/* Oyun Kısayolları */}
-                  <div className="mt-4 pt-3.5 border-t border-white/[0.06]">
-                    <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 tabular-nums">
-                      Kayıtlı Oyunlar ({p.games.length})
+                  {/* Kategori Özeti */}
+                  {categories.length > 0 && (
+                    <div className="mt-4 pt-3.5 border-t border-white/[0.06]">
+                      <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2 tabular-nums">
+                        Kategoriler ({categories.length})
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {categories.slice(0, 4).map((c) => {
+                          const count = platformAccounts.filter((a) => a.category === c.name).length;
+                          return (
+                            <span
+                              key={c._id}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-white/[0.04] text-text-secondary border border-white/[0.06]"
+                            >
+                              <span>{c.icon || '🏷️'}</span>
+                              <span>{c.name}</span>
+                              {count > 0 && (
+                                <span className="text-[10px] font-semibold tabular-nums px-1 rounded bg-accent-500/20 text-accent-300">
+                                  {count}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.games.map((g) => {
-                        const count = getGameCount(g.slug);
-                        return (
-                          <Link
-                            key={g.slug}
-                            href={`/platform/${p.slug}/${g.slug}`}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-text-secondary hover:text-white border border-white/[0.06] transition-colors"
-                          >
-                            <span>{g.icon || '🕹️'}</span>
-                            <span>{g.name}</span>
-                            {count > 0 && (
-                              <span className="text-[10px] font-semibold tabular-nums px-1.5 rounded bg-accent-500/20 text-accent-300">
-                                {count}
-                              </span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="mt-5 pt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs font-semibold text-accent-300">
-                  <Link
-                    href={platformTargetUrl}
-                    className="inline-flex items-center gap-1.5 group-hover:text-white transition-colors"
-                  >
-                    <span>Platformu Aç</span>
+                  <span className="inline-flex items-center gap-1.5 group-hover:text-white transition-colors">
+                    <span>Hesapları Yönet</span>
                     <span className="transition-transform group-hover:translate-x-1">→</span>
-                  </Link>
+                  </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
 
@@ -308,7 +306,7 @@ export default function LandingView({
               </h2>
             </div>
             <Link
-              href="/platform/lol"
+              href={`/platform/${platforms[0]?.slug || 'riot'}`}
               className="btn btn-ghost btn-sm text-accent-300 hover:text-white tabular-nums"
             >
               {t('view_all_accounts')} ({accounts.length}) →

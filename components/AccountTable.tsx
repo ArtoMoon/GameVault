@@ -18,6 +18,7 @@ export interface AccountTableProps {
   accounts: AccountData[];
   categories?: CategoryData[];
   platformsList?: PlatformData[];
+  hideCategoryBar?: boolean;
   onOpenCategoriesModal?: () => void;
   statusFilter?: AccountStatus | '';
   onStatusFilterChange?: (status: AccountStatus | '') => void;
@@ -37,6 +38,7 @@ export default function AccountTable({
   accounts,
   categories = [],
   platformsList = [],
+  hideCategoryBar = false,
   onOpenCategoriesModal,
   statusFilter: controlledStatus,
   onStatusFilterChange,
@@ -233,7 +235,7 @@ export default function AccountTable({
   return (
     <section className="space-y-4">
       {/* ── 🏷️ KATEGORİ FİLTRE ÇİPLERİ (CATEGORY CHIPS) ── */}
-      {categories && categories.length > 0 && (
+      {!hideCategoryBar && categories && categories.length > 0 && (
         <div className="card p-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
             <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1.5">
