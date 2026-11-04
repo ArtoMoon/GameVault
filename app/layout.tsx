@@ -1,16 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { getPlatforms } from '@/app/actions/platforms';
 import Sidebar from '@/components/Sidebar';
 import OnboardingModal from '@/components/OnboardingModal';
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: {
@@ -29,7 +24,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
   const platforms = await getPlatforms();
 
   return (
-    <html lang="tr" className={inter.variable}>
+    <html lang="tr">
       <body>
         <LanguageProvider>
           <div className="flex min-h-screen">

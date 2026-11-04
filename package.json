@@ -6,7 +6,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/prepare-standalone.cjs",
+    "build": "next build --webpack && node scripts/prepare-standalone.cjs",
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
