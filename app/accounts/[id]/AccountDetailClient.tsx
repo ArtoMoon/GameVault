@@ -4,17 +4,27 @@ import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AccountData } from '@/app/actions/accounts';
 import {
+  updateAccount,
   updateAccountNotes,
   updateAccountUsername,
   updateAccountStatus,
   updateAccountPlatform,
   updateAccountCategory,
   updateAccountGame,
+  toggleCs2DropClaim,
   deleteAccount,
 } from '@/app/actions/accounts';
 import type { CategoryData } from '@/app/actions/categories';
 import type { AccountStatus } from '@/models/Account';
 import { syncAccount, syncMatchHistory } from '@/app/actions/accountSync';
+import {
+  CS2_POPULAR_CASES,
+  formatTimeUntilNextCs2Reset,
+  getRecentCs2Weeks,
+  getDropRecordForWeek,
+  hasClaimedCs2DropThisWeek,
+  isAccountCs2DropTracked,
+} from '@/lib/cs2/dropTracker';
 import StatusBadge from '@/components/StatusBadge';
 import RankBadge from '@/components/RankBadge';
 import PlatformBadge from '@/components/PlatformBadge';
@@ -41,12 +51,49 @@ const GAME_LABELS: Record<string, string> = {
   albion: '🛡️ Albion Online',
   valorant: '🎯 Valorant',
   tft: '♟️ TFT',
-  cs2: '🔫 CS2',
+  cs2: '🔫 Counter-Strike 2',
   dota2: '🛡️ Dota 2',
   fortnite: '⛏️ Fortnite',
   other: '🎮 Diğer Oyun',
   lol: '⚔️ League of Legends',
 };
+
+const CS2_RANK_PRESETS = [
+  'UNRANKED',
+  '5,000 CS',
+  '10,000 CS',
+  '15,000 CS',
+  '20,000+ CS',
+  'Silver',
+  'Gold Nova',
+  'Master Guardian',
+  'Legendary Eagle',
+  'Global Elite',
+];
+
+const ALBION_RANK_PRESETS = [
+  'Tier 4',
+  'Tier 5',
+  'Tier 6',
+  'Tier 7',
+  'Tier 8',
+  'Elder',
+  'Master',
+];
+
+const LOL_RANK_PRESETS = [
+  'UNRANKED',
+  'IRON',
+  'BRONZE',
+  'SILVER',
+  'GOLD',
+  'PLATINUM',
+  'EMERALD',
+  'DIAMOND',
+  'MASTER',
+  'GRANDMASTER',
+  'CHALLENGER',
+];
 
 export default function AccountDetailClient({
   account: initialAccount,
@@ -57,11 +104,27 @@ export default function AccountDetailClient({
   const router = useRouter();
   const [account, setAccount] = useState<AccountData>(initialAccount);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Satır içi düzenleme state'leri
+  const [riotIdInput, setRiotIdInput] = useState(initialAccount.riotId ?? '');
+  const [isEditingRiotId, setIsEditingRiotId] = useState(false);
+
   const [notes, setNotes] = useState(initialAccount.notes ?? '');
   const [username, setUsername] = useState(initialAccount.username ?? '');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [isUsernameRevealed, setIsUsernameRevealed] = useState(false);
   const [copiedUser, setCopiedUser] = useState(false);
+
+  const [levelInput, setLevelInput] = useState<number>(initialAccount.level ?? 1);
+  const [rankInput, setRankInput] = useState<string>(initialAccount.rank || 'UNRANKED');
+  const [totalDropsInput, setTotalDropsInput] = useState<number>(
+    initialAccount.csTotalDrops ?? 0
+  );
+  const [selectedCaseName, setSelectedCaseName] = useState<string>(
+    initialAccount.csLastCaseName || CS2_POPULAR_CASES[0]
+  );
+  const [customCaseInput, setCustomCaseInput] = useState<string>('');
+  const [weekCaseSelections, setWeekCaseSelections] = useState<Record<string, string>>({});
 
   const [isPending, startTransition] = useTransition();
   const [isSyncingMatches, startMatchSync] = useTransition();
@@ -86,10 +149,40 @@ export default function AccountDetailClient({
             ? initialAccount.ranks
             : prev.ranks,
       }));
+      setRiotIdInput(initialAccount.riotId ?? '');
       setNotes(initialAccount.notes ?? '');
       setUsername(initialAccount.username ?? '');
+      setLevelInput(initialAccount.level ?? 1);
+      setRankInput(initialAccount.rank || 'UNRANKED');
+      setTotalDropsInput(initialAccount.csTotalDrops ?? 0);
+      if (initialAccount.csLastCaseName) {
+        setSelectedCaseName(initialAccount.csLastCaseName);
+      }
     }
   }, [initialAccount]);
+
+  const cleanGame = (account.game || 'lol').toLowerCase();
+  const isCs2 = cleanGame === 'cs2';
+  const isAlbion = cleanGame === 'albion' || cleanGame.includes('albion');
+  const isRiotGame = !isCs2 && ['lol', 'valorant', 'tft'].includes(cleanGame);
+  const csTracked = isAccountCs2DropTracked(account);
+  const csClaimedThisWeek = hasClaimedCs2DropThisWeek(
+    account.csLastDropAt,
+    new Date(),
+    account.csDropHistory
+  );
+  const recentWeeks = getRecentCs2Weeks(8);
+  const dropHistory = Array.isArray(account.csDropHistory)
+    ? account.csDropHistory
+    : [];
+
+  // Kasa bazlı istatistik dağılımı
+  const caseBreakdown: Record<string, number> = {};
+  for (const item of dropHistory) {
+    if (item?.caseName) {
+      caseBreakdown[item.caseName] = (caseBreakdown[item.caseName] || 0) + 1;
+    }
+  }
 
   const ranks = account.ranks || { solo: null, flex: null };
   const matches = account.matches || [];
@@ -118,6 +211,115 @@ export default function AccountDetailClient({
         )}-${encodeURIComponent(logTagLine)}`
       : null;
 
+  function showToast(msg: string) {
+    setStatusMsg(msg);
+    setTimeout(() => setStatusMsg(null), 3500);
+  }
+
+  function handleSaveRiotId() {
+    if (!riotIdInput.trim()) return;
+    startTransition(async () => {
+      const res = await updateAccount(account._id, { riotId: riotIdInput.trim() });
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        setIsEditingRiotId(false);
+        showToast('✅ Hesap adı güncellendi.');
+        router.refresh();
+      } else {
+        showToast('❌ ' + (res.error || 'Güncellenemedi'));
+      }
+    });
+  }
+
+  function handleSaveLevelAndRank(nextLevel?: number, nextRank?: string) {
+    const lv = nextLevel !== undefined ? nextLevel : levelInput;
+    const rk = nextRank !== undefined ? nextRank : rankInput;
+    setLevelInput(lv);
+    setRankInput(rk);
+    startTransition(async () => {
+      const res = await updateAccount(account._id, {
+        level: Math.max(0, Number(lv) || 0),
+        rank: rk.trim() || 'UNRANKED',
+      });
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        showToast('✅ Seviye ve Rank güncellendi.');
+        router.refresh();
+      }
+    });
+  }
+
+  function handleToggleCsTracking(nextVal: boolean) {
+    setAccount((prev) => ({ ...prev, csDropTracked: nextVal }));
+    startTransition(async () => {
+      const res = await updateAccount(account._id, { csDropTracked: nextVal });
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        showToast(nextVal ? '✅ CS2 Kasa Takibi açıldı.' : 'ℹ️ CS2 Kasa Takibi kapatıldı.');
+        router.refresh();
+      }
+    });
+  }
+
+  function handleTogglePrime(nextPrime: boolean) {
+    setAccount((prev) => ({ ...prev, csPrime: nextPrime }));
+    startTransition(async () => {
+      const res = await updateAccount(account._id, { csPrime: nextPrime });
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        showToast(nextPrime ? '⭐ Prime Aktif olarak işaretlendi.' : '⚪ Prime Yok olarak işaretlendi.');
+        router.refresh();
+      }
+    });
+  }
+
+  function handleSaveTotalDrops(nextTotal: number) {
+    const cleanTotal = Math.max(0, Number(nextTotal) || 0);
+    setTotalDropsInput(cleanTotal);
+    startTransition(async () => {
+      const res = await updateAccount(account._id, { csTotalDrops: cleanTotal });
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        showToast(`✅ Toplam kasa sayısı (${cleanTotal}) güncellendi.`);
+        router.refresh();
+      }
+    });
+  }
+
+  function handleWeekDropAction(
+    weekKey: string,
+    weekLabel: string,
+    claimed: boolean,
+    caseNameOverride?: string
+  ) {
+    const effectiveCase =
+      (caseNameOverride ?? customCaseInput.trim()) ||
+      selectedCaseName ||
+      'Kasa Alındı';
+
+    startTransition(async () => {
+      const res = await toggleCs2DropClaim(
+        account._id,
+        claimed,
+        effectiveCase,
+        weekKey,
+        weekLabel
+      );
+      if (res.success && res.account) {
+        setAccount((prev) => ({ ...prev, ...res.account }));
+        setTotalDropsInput(res.account.csTotalDrops ?? 0);
+        showToast(
+          claimed
+            ? `✅ ${weekLabel} haftası için "${effectiveCase}" kaydedildi!`
+            : `↩ ${weekLabel} haftası kasa kaydı kaldırıldı.`
+        );
+        router.refresh();
+      } else {
+        showToast('❌ ' + (res.error || 'Hata oluştu'));
+      }
+    });
+  }
+
   function handleStatusChange(newStatus: AccountStatus) {
     const oldStatus = account.status;
     setAccount((prev) => ({ ...prev, status: newStatus }));
@@ -125,12 +327,11 @@ export default function AccountDetailClient({
     startTransition(async () => {
       const res = await updateAccountStatus(account._id, newStatus);
       if (res.success) {
-        setStatusMsg(`✅ ${t('status_updated')}`);
-        setTimeout(() => setStatusMsg(null), 3000);
+        showToast(`✅ ${t('status_updated')}`);
         router.refresh();
       } else {
         setAccount((prev) => ({ ...prev, status: oldStatus }));
-        setStatusMsg('❌ ' + (res.error || 'Failed'));
+        showToast('❌ ' + (res.error || 'Failed'));
       }
     });
   }
@@ -142,12 +343,8 @@ export default function AccountDetailClient({
     startTransition(async () => {
       const res = await updateAccountPlatform(account._id, newPlatform);
       if (res.success) {
-        setPlatformMsg(
-          language === 'tr'
-            ? "✅ Sunucu güncellendi. Yeni verileri çekmek için 'Senkronize Et' yapabilirsiniz."
-            : '✅ Region updated. You can click Sync to fetch new data.'
-        );
-        setTimeout(() => setPlatformMsg(null), 5000);
+        setPlatformMsg('✅ Sunucu / bölge güncellendi.');
+        setTimeout(() => setPlatformMsg(null), 4000);
         router.refresh();
       } else {
         setAccount((prev) => ({ ...prev, platform: oldPlatform }));
@@ -162,6 +359,7 @@ export default function AccountDetailClient({
     startTransition(async () => {
       const res = await updateAccountCategory(account._id, newCategory);
       if (res.success) {
+        showToast('✅ Kategori güncellendi.');
         router.refresh();
       } else {
         setAccount((prev) => ({ ...prev, category: oldCat }));
@@ -171,10 +369,15 @@ export default function AccountDetailClient({
 
   function handleGameChange(newGame: string) {
     const oldGame = account.game;
-    setAccount((prev) => ({ ...prev, game: newGame }));
+    setAccount((prev) => ({
+      ...prev,
+      game: newGame,
+      ...(newGame.toLowerCase() === 'cs2' ? { csDropTracked: true } : {}),
+    }));
     startTransition(async () => {
       const res = await updateAccountGame(account._id, newGame);
       if (res.success) {
+        showToast('✅ Oyun modülü güncellendi.');
         router.refresh();
       } else {
         setAccount((prev) => ({ ...prev, game: oldGame }));
@@ -200,6 +403,7 @@ export default function AccountDetailClient({
       if (result.success) {
         setAccount((prev) => ({ ...prev, username }));
         setIsEditingUsername(false);
+        showToast('✅ Giriş kullanıcı adı kaydedildi.');
       }
     });
   }
@@ -237,21 +441,11 @@ export default function AccountDetailClient({
             }));
           }
           const matchCount = result.updatedAccount?.matches?.length ?? 0;
-          if (matchCount === 0) {
-            setCheckMsg(
-              language === 'tr'
-                ? result.statusChanged
-                  ? `Durum güncellendi → ${result.newStatus}. ℹ️ Oynanmış maç bulunamadı.`
-                  : 'Seviye ve rank güncellendi. ℹ️ Bu hesapta oynanmış maç bulunamadı.'
-                : 'Stats updated. ℹ️ No matches recorded.'
-            );
-          } else {
-            setCheckMsg(
-              language === 'tr'
-                ? `✅ Tüm veriler ve son ${matchCount} maç başarıyla güncellendi.`
-                : `✅ All data and last ${matchCount} matches successfully updated.`
-            );
-          }
+          setCheckMsg(
+            matchCount === 0
+              ? '✅ Seviye ve rank güncellendi.'
+              : `✅ Tüm veriler ve son ${matchCount} maç güncellendi.`
+          );
           router.refresh();
           setTimeout(() => setCheckMsg(null), 5000);
         } else {
@@ -277,19 +471,11 @@ export default function AccountDetailClient({
             }));
           }
           const matchCount = result.updatedAccount?.matches?.length ?? 0;
-          if (matchCount === 0) {
-            setMatchSyncMsg(
-              language === 'tr'
-                ? 'ℹ️ Bu hesapta Riot API üzerinde oynanmış maç bulunamadı (0 maç).'
-                : 'ℹ️ No match history found on Riot API for this account.'
-            );
-          } else {
-            setMatchSyncMsg(
-              language === 'tr'
-                ? `✅ Son ${matchCount} maç ve rank bilgileri başarıyla güncellendi!`
-                : `✅ Last ${matchCount} matches and ranks updated!`
-            );
-          }
+          setMatchSyncMsg(
+            matchCount === 0
+              ? 'ℹ️ Bu hesapta Riot API üzerinde oynanmış maç bulunamadı (0 maç).'
+              : `✅ Son ${matchCount} maç ve rank bilgileri başarıyla güncellendi!`
+          );
           router.refresh();
           setTimeout(() => setMatchSyncMsg(null), 5000);
         } else {
@@ -330,13 +516,17 @@ export default function AccountDetailClient({
       ? (matches.reduce((a, b) => a + b.assists, 0) / matches.length).toFixed(1)
       : 0;
 
-  const isRiotGame = ['lol', 'valorant', 'tft'].includes(
-    (account.game || '').toLowerCase()
-  );
+  const activePresetList = isCs2
+    ? CS2_RANK_PRESETS
+    : isAlbion
+    ? ALBION_RANK_PRESETS
+    : LOL_RANK_PRESETS;
+
+  const currentWeekSlot = recentWeeks[0];
 
   return (
     <div className="space-y-6">
-      {/* ÜST PROFİL HERO KARTI */}
+      {/* ── 1. ÜST PROFİL HERO KARTI ── */}
       <div className="card overflow-hidden relative">
         <div
           className="h-28 relative overflow-hidden border-b border-white/[0.06]"
@@ -353,7 +543,7 @@ export default function AccountDetailClient({
             {/* Sol: Avatar + Kimlik */}
             <div className="flex flex-col sm:flex-row sm:items-end gap-5 min-w-0">
               <div className="w-24 h-24 rounded-2xl border-2 border-white/15 overflow-hidden bg-ink-850 relative shadow-2xl shrink-0 flex items-center justify-center ring-4 ring-ink-950/70">
-                {account.game === 'lol' ? (
+                {cleanGame === 'lol' ? (
                   <Image
                     src={ddragon.profileIcon(profileIconId)}
                     alt="Profile Icon"
@@ -362,7 +552,7 @@ export default function AccountDetailClient({
                     unoptimized
                     className="w-full h-full object-cover"
                   />
-                ) : account.avatarUrl || account.game === 'albion' ? (
+                ) : account.avatarUrl || isAlbion ? (
                   <img
                     src={
                       account.avatarUrl ||
@@ -373,11 +563,11 @@ export default function AccountDetailClient({
                   />
                 ) : (
                   <span className="text-4xl">
-                    {account.game === 'valorant'
+                    {cleanGame === 'valorant'
                       ? '🎯'
-                      : account.game === 'tft'
+                      : cleanGame === 'tft'
                       ? '♟️'
-                      : account.game === 'cs2'
+                      : isCs2
                       ? '🔫'
                       : '🎮'}
                   </span>
@@ -390,7 +580,7 @@ export default function AccountDetailClient({
               <div className="min-w-0 space-y-2 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="chip">
-                    {GAME_LABELS[account.game || 'lol'] || GAME_LABELS.lol}
+                    {GAME_LABELS[cleanGame] || GAME_LABELS.lol}
                   </span>
                   {account.category && (
                     <span className="chip !text-accent-300 !bg-accent-500/10 !border-accent-400/25">
@@ -399,25 +589,96 @@ export default function AccountDetailClient({
                   )}
                   <PlatformBadge platform={account.platform} />
                   <StatusBadge status={account.status} />
+                  {csTracked && (
+                    <span
+                      className={`chip font-bold ${
+                        csClaimedThisWeek
+                          ? '!text-emerald-300 !bg-emerald-500/15 !border-emerald-400/35'
+                          : '!text-amber-300 !bg-amber-500/15 !border-amber-400/40'
+                      }`}
+                    >
+                      {csClaimedThisWeek
+                        ? '✅ Bu Hafta Kasa Alındı'
+                        : '📦 Kasa Hazır (Bekliyor)'}
+                    </span>
+                  )}
+                  {(isCs2 || csTracked) && (
+                    <span
+                      className={`chip ${
+                        account.csPrime !== false
+                          ? '!text-emerald-300 !bg-emerald-500/10 !border-emerald-500/25'
+                          : '!text-text-muted'
+                      }`}
+                    >
+                      {account.csPrime !== false ? '⭐ Prime Aktif' : '⚪ Prime Yok'}
+                    </span>
+                  )}
                 </div>
 
+                {/* Hesap Adı (Satır İçi Düzenlenebilir) */}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <RiotIdDisplay
-                    riotId={account.riotId}
-                    textClassName="text-2xl sm:text-3xl font-extrabold text-white tracking-tight"
-                    tagClassName="text-xs font-mono text-accent-300 bg-accent-500/10 border-accent-400/25"
-                  />
+                  {isEditingRiotId ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={riotIdInput}
+                        onChange={(e) => setRiotIdInput(e.target.value)}
+                        className="input !h-9 !w-64 text-sm font-bold"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveRiotId}
+                        disabled={isPending}
+                        className="btn btn-success btn-sm"
+                      >
+                        ✓ Kaydet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRiotIdInput(account.riotId);
+                          setIsEditingRiotId(false);
+                        }}
+                        className="btn btn-secondary btn-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <RiotIdDisplay
+                        riotId={account.riotId}
+                        textClassName="text-2xl sm:text-3xl font-extrabold text-white tracking-tight"
+                        tagClassName="text-xs font-mono text-accent-300 bg-accent-500/10 border-accent-400/25"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingRiotId(true)}
+                        className="btn btn-ghost btn-sm !h-7 !px-2 text-xs"
+                        title="Hesap adını değiştir"
+                      >
+                        ✏️ Adı Değiştir
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-text-muted flex-wrap">
                   <span className="tabular-nums">
-                    {t('added_label')}: <strong className="text-text-secondary font-medium">{createdAt}</strong>
+                    {t('added_label')}:{' '}
+                    <strong className="text-text-secondary font-medium">
+                      {createdAt}
+                    </strong>
                   </span>
                   <span className="text-white/15">•</span>
                   <span className="tabular-nums">
-                    {t('th_last_checked')}: <strong className="text-text-secondary font-medium">{lastChecked}</strong>
+                    {t('th_last_checked')}:{' '}
+                    <strong className="text-text-secondary font-medium">
+                      {lastChecked}
+                    </strong>
                   </span>
-                  {leagueOfGraphsUrl && account.game === 'lol' && (
+                  {leagueOfGraphsUrl && cleanGame === 'lol' && (
                     <a
                       href={leagueOfGraphsUrl}
                       target="_blank"
@@ -425,11 +686,7 @@ export default function AccountDetailClient({
                       className="chip hover:!border-emerald-400/40 hover:!text-emerald-300 hover:!bg-emerald-500/10 transition-colors"
                       title="League of Graphs"
                     >
-                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                      </svg>
-                      <span>League of Graphs</span>
+                      <span>↗ League of Graphs</span>
                     </a>
                   )}
                 </div>
@@ -442,13 +699,13 @@ export default function AccountDetailClient({
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
                 className="btn btn-secondary"
-                title="Hesabı Düzenle"
+                title="Tüm Alanları Modalda Düzenle"
               >
-                <span>✏️</span>
-                <span>{ isRiotGame ? 'Düzenle' : 'Platforma Göre Düzenle' }</span>
+                <span>⚙️</span>
+                <span>Gelişmiş Düzenle</span>
               </button>
 
-              {isRiotGame && (
+              {(isRiotGame || isAlbion) && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -495,17 +752,25 @@ export default function AccountDetailClient({
         </div>
       </div>
 
-      {/* ANA İÇERİK IZGARASI */}
+      {/* ── 2. ANA İÇERİK IZGARASI ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* SOL SÜTUN (Giriş Bilgisi, Hızlı Ayarlar, Ranklar, Notlar) */}
+        {/* SOL SÜTUN: Tüm Hesap Ayarları, Giriş, Seviye, Rank, Notlar */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Giriş & Hızlı Ayarlar Kartı */}
+          {/* Hızlı Hesap & Giriş Ayarları Kartı */}
           <div className="card p-5 space-y-5">
-            {/* Kullanıcı Adı (Giriş) */}
+            <div className="flex items-center justify-between">
+              <h3 className="eyebrow flex items-center gap-1.5">
+                <span>⚙️</span>
+                <span>Hızlı Hesap Ayarları</span>
+              </h3>
+              <span className="text-[10px] text-text-muted">Anında Kaydedilir</span>
+            </div>
+
+            {/* Giriş Kullanıcı Adı (Username) */}
             <div className="p-3.5 bg-black/25 border border-white/[0.07] rounded-xl">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <span className="label !mb-1">{t('label_username')}</span>
+                  <span className="label !mb-1">🔑 {t('label_username')}</span>
                   {isEditingUsername ? (
                     <div className="flex items-center gap-2 mt-1.5">
                       <input
@@ -576,7 +841,7 @@ export default function AccountDetailClient({
                             type="button"
                             onClick={copyUsername}
                             className="text-xs text-text-muted hover:text-accent-300 transition-colors p-0.5 cursor-pointer"
-                            title="Copy"
+                            title="Kopyala"
                           >
                             {copiedUser ? '✅' : '📋'}
                           </button>
@@ -603,14 +868,14 @@ export default function AccountDetailClient({
 
             <div className="divider" />
 
-            {/* Hızlı Seçiciler */}
+            {/* Hızlı Seçiciler: Durum, Bölge, Oyun, Kategori, CS2 Kasa Takibi, Prime */}
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-text-secondary font-medium shrink-0">
-                  {t('status_select_label')}:
+                  📌 {t('status_select_label')}:
                 </span>
                 <select
-                  className="input !h-9 !py-0 !text-xs max-w-[190px]"
+                  className="input !h-9 !py-0 !text-xs max-w-[195px]"
                   value={account.status}
                   onChange={(e) =>
                     handleStatusChange(e.target.value as AccountStatus)
@@ -629,20 +894,18 @@ export default function AccountDetailClient({
 
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-text-secondary font-medium shrink-0">
-                  {account.game === 'albion'
-                    ? 'Albion Sunucusu:'
-                    : t('th_region') + ':'}
+                  🌐 {isAlbion ? 'Albion Sunucusu:' : t('th_region') + ':'}
                 </span>
                 <select
-                  className="input !h-9 !py-0 !text-xs max-w-[190px]"
+                  className="input !h-9 !py-0 !text-xs max-w-[195px]"
                   value={
                     account.platform ||
-                    (account.game === 'albion' ? 'Europe' : 'TR1')
+                    (isAlbion ? 'Europe' : isRiotGame ? 'TR1' : 'Global')
                   }
                   onChange={(e) => handlePlatformChange(e.target.value)}
                   disabled={isPending}
                 >
-                  {account.game === 'albion' ? (
+                  {isAlbion ? (
                     <>
                       <option value="Europe">🇪🇺 Albion Europe (Avrupa)</option>
                       <option value="Americas">🇺🇸 Albion Americas (Batı)</option>
@@ -661,7 +924,7 @@ export default function AccountDetailClient({
                     </>
                   ) : (
                     <>
-                      <option value="Global">🌐 Global</option>
+                      <option value="Global">🌐 Global / Steam</option>
                       <option value="Europe">🇪🇺 Europe</option>
                       <option value="North America">🇺🇸 North America</option>
                       <option value="Turkey">🇹🇷 Turkey</option>
@@ -673,10 +936,10 @@ export default function AccountDetailClient({
 
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-text-secondary font-medium shrink-0">
-                  Oyun:
+                  🎮 Oyun Modülü:
                 </span>
                 <select
-                  className="input !h-9 !py-0 !text-xs max-w-[190px]"
+                  className="input !h-9 !py-0 !text-xs max-w-[195px]"
                   value={account.game || 'lol'}
                   onChange={(e) => handleGameChange(e.target.value)}
                   disabled={isPending}
@@ -697,16 +960,17 @@ export default function AccountDetailClient({
                       <option value="albion">🛡️ Albion</option>
                     </>
                   )}
+                  <option value="cs2">🔫 Counter-Strike 2 (CS2)</option>
                   <option value="other">🎮 Diğer Oyunlar</option>
                 </select>
               </div>
 
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-text-secondary font-medium shrink-0">
-                  Kategori:
+                  🏷️ Kategori:
                 </span>
                 <select
-                  className="input !h-9 !py-0 !text-xs max-w-[190px]"
+                  className="input !h-9 !py-0 !text-xs max-w-[195px]"
                   value={account.category || ''}
                   onChange={(e) => handleCategoryChange(e.target.value)}
                   disabled={isPending}
@@ -719,138 +983,165 @@ export default function AccountDetailClient({
                   ))}
                 </select>
               </div>
+
+              <div className="flex justify-between items-center gap-3 pt-1">
+                <span className="text-xs text-text-secondary font-medium shrink-0">
+                  📦 CS2 Kasa Takibi:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCsTracking(!csTracked)}
+                  disabled={isPending}
+                  className={`h-8 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    csTracked
+                      ? 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                      : 'bg-white/[0.04] border-white/[0.08] text-text-muted hover:text-white'
+                  }`}
+                >
+                  {csTracked ? '✓ Aktif (Açık)' : 'Kapalı (Aç)'}
+                </button>
+              </div>
+
+              {(csTracked || isCs2) && (
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-xs text-text-secondary font-medium shrink-0">
+                    ⭐ CS2 Prime Statüsü:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePrime(account.csPrime === false)}
+                    disabled={isPending}
+                    className={`h-8 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      account.csPrime !== false
+                        ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                        : 'bg-white/[0.04] border-white/[0.08] text-text-muted hover:text-white'
+                    }`}
+                  >
+                    {account.csPrime !== false ? '⭐ Prime Aktif' : '⚪ Prime Yok'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Rank Kartları */}
-          {account.game === 'lol' ? (
-            <div className="card p-5 flex flex-col gap-3.5">
-              {/* Solo/Duo */}
-              <div className="flex items-center gap-4 p-3.5 bg-white/[0.025] rounded-xl border border-white/[0.06]">
-                <div className="w-16 h-16 flex items-center justify-center shrink-0">
+          {/* ── SEVİYE & RANK DOĞRUDAN DÜZENLEME KARTI ── */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="eyebrow flex items-center gap-1.5">
+                <span>🏆</span>
+                <span>Seviye & Rank / Derece Ayarları</span>
+              </h3>
+            </div>
+
+            {cleanGame === 'lol' && (ranks.solo || ranks.flex) && (
+              <div className="space-y-3 pb-2 border-b border-white/[0.06]">
+                <div className="flex items-center gap-4 p-3 bg-white/[0.025] rounded-xl border border-white/[0.06]">
                   <RankBadge
                     rank={ranks.solo?.formattedRank || account.rank || 'UNRANKED'}
-                    size={64}
+                    size={52}
                   />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="eyebrow !text-[10px] mb-1">{t('solo_duo')}</p>
-                  {ranks.solo ? (
-                    <>
-                      <p className="text-lg font-bold text-white leading-none truncate">
-                        {ranks.solo.formattedRank}
-                      </p>
-                      <p className="text-xs text-text-secondary mt-1.5 tabular-nums">
-                        <span className="text-emerald-400 font-semibold">
-                          {ranks.solo.wins}
-                          {t('stat_win_char')}
-                        </span>{' '}
-                        -{' '}
-                        <span className="text-rose-400 font-semibold">
-                          {ranks.solo.losses}
-                          {t('stat_loss_char')}
-                        </span>
-                        <span className="mx-1.5 text-white/20">•</span>
-                        Win Rate{' '}
-                        <strong className="text-white">
-                          {calculateWinRate(ranks.solo.wins, ranks.solo.losses)}%
-                        </strong>
-                      </p>
-                    </>
-                  ) : account.rank && account.rank !== 'UNRANKED' ? (
-                    <>
-                      <p className="text-lg font-bold text-text-primary leading-none">
-                        {account.rank}
-                      </p>
-                      <p className="text-[10px] text-accent-300 mt-1 uppercase tracking-wider font-semibold">
-                        {language === 'tr'
-                          ? 'Geçmiş Sezon / Kayıtlı'
-                          : 'Previous Season / Saved'}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-bold text-text-muted">
-                      {t('unranked')}
+                  <div className="min-w-0">
+                    <p className="eyebrow !text-[10px]">{t('solo_duo')}</p>
+                    <p className="text-base font-bold text-white truncate">
+                      {ranks.solo ? ranks.solo.formattedRank : account.rank}
                     </p>
-                  )}
+                    {ranks.solo && (
+                      <p className="text-xs text-text-secondary tabular-nums">
+                        {ranks.solo.wins}W - {ranks.solo.losses}L (
+                        {calculateWinRate(ranks.solo.wins, ranks.solo.losses)}% WR)
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Flex */}
-              <div className="flex items-center gap-4 p-3.5 bg-white/[0.025] rounded-xl border border-white/[0.06]">
-                <div className="w-14 h-14 flex items-center justify-center opacity-85 shrink-0">
-                  <RankBadge
-                    rank={ranks.flex?.formattedRank || 'UNRANKED'}
-                    size={48}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="eyebrow !text-[10px] mb-1">{t('flex')}</p>
-                  {ranks.flex ? (
-                    <>
-                      <p className="text-sm font-bold text-white leading-none truncate">
-                        {ranks.flex.formattedRank}
-                      </p>
-                      <p className="text-xs text-text-secondary mt-1.5 tabular-nums">
-                        <span className="text-emerald-400 font-semibold">
-                          {ranks.flex.wins}
-                          {t('stat_win_char')}
-                        </span>{' '}
-                        -{' '}
-                        <span className="text-rose-400 font-semibold">
-                          {ranks.flex.losses}
-                          {t('stat_loss_char')}
-                        </span>
-                        <span className="mx-1.5 text-white/20">•</span>
-                        WR{' '}
-                        <strong className="text-white">
-                          {calculateWinRate(ranks.flex.wins, ranks.flex.losses)}%
-                        </strong>
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-bold text-text-muted">
-                      {t('unranked')}
-                    </p>
-                  )}
-                </div>
+            {/* Seviye Düzenleyici */}
+            <div>
+              <label className="label">⚡ Hesap Seviyesi (Level)</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveLevelAndRank(Math.max(0, levelInput - 1), undefined)}
+                  disabled={isPending}
+                  className="btn btn-secondary btn-sm !h-9 !w-9 font-bold"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="0"
+                  value={levelInput}
+                  onChange={(e) => setLevelInput(parseInt(e.target.value, 10) || 0)}
+                  className="input !h-9 text-center font-bold tabular-nums"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveLevelAndRank(levelInput + 1, undefined)}
+                  disabled={isPending}
+                  className="btn btn-secondary btn-sm !h-9 !w-9 font-bold"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveLevelAndRank(levelInput, rankInput)}
+                  disabled={isPending}
+                  className="btn btn-primary btn-sm !h-9"
+                >
+                  Kaydet
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="card p-5 flex flex-col gap-3">
-              <h3 className="eyebrow flex items-center gap-1.5">
-                <span>🛡️</span>
-                <span>Karakter & Seviye Durumu</span>
-              </h3>
 
-              <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.06] flex items-center justify-between">
-                <span className="text-xs text-text-secondary">Rütbe / Tier:</span>
-                <span className="text-sm font-bold text-accent-300">
-                  {account.rank ||
-                    (account.game === 'albion'
-                      ? 'Tier 4 (Adept)'
-                      : 'Belirtilmemiş')}
-                </span>
+            {/* Rank / Premier / Tier Düzenleyici */}
+            <div>
+              <label className="label">
+                🏆 {isCs2 ? 'CS2 Premier / Rank' : isAlbion ? 'Albion Tier / Rank' : 'Rank / Lig'}
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={rankInput}
+                  onChange={(e) => setRankInput(e.target.value)}
+                  placeholder={isCs2 ? 'Örn: 15,400 CS' : 'Örn: GOLD II'}
+                  className="input !h-9 text-xs font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveLevelAndRank(levelInput, rankInput)}
+                  disabled={isPending}
+                  className="btn btn-primary btn-sm !h-9"
+                >
+                  Kaydet
+                </button>
               </div>
 
-              <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.06] flex items-center justify-between">
-                <span className="text-xs text-text-secondary">Seviye (Level):</span>
-                <span className="text-sm font-bold text-white tabular-nums">
-                  Lv. {account.level ?? 1}
-                </span>
-              </div>
-
-              <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.06] flex items-center justify-between">
-                <span className="text-xs text-text-secondary">Sunucu / Bölge:</span>
-                <span className="text-xs font-bold text-glow-400 uppercase">
-                  {account.platform ||
-                    (account.game === 'albion' ? 'Europe' : 'Global')}
-                </span>
+              {/* Hızlı Rank Seçim Çipleri */}
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {activePresetList.map((pr) => {
+                  const isSel = rankInput.toUpperCase() === pr.toUpperCase();
+                  return (
+                    <button
+                      key={pr}
+                      type="button"
+                      onClick={() => handleSaveLevelAndRank(levelInput, pr)}
+                      disabled={isPending}
+                      className={`px-2 py-1 rounded-lg text-[10.5px] font-semibold border transition-all cursor-pointer ${
+                        isSel
+                          ? 'bg-accent-500/25 border-accent-400/50 text-white'
+                          : 'bg-white/[0.03] border-white/[0.07] text-text-secondary hover:text-white'
+                      }`}
+                    >
+                      {pr}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Notlar */}
+          {/* ── NOTLAR KARTI ── */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -888,11 +1179,387 @@ export default function AccountDetailClient({
           </div>
         </div>
 
-        {/* SAĞ SÜTUN */}
-        <div className="lg:col-span-8 flex flex-col gap-5">
-          {account.game === 'lol' ? (
+        {/* SAĞ SÜTUN: CS2 Haftalık Kasa Takip Merkezi & Maç / Platform Detayları */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          {/* ── 📦 CS2 HAFTALIK KASA & DROP TAKİP MERKEZİ ── */}
+          {csTracked ? (
+            <div className="card p-6 space-y-6">
+              {/* Başlık & Sıfırlanma Sayacı */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/[0.07]">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-400/35 text-2xl flex items-center justify-center shrink-0">
+                    📦
+                  </div>
+                  <div>
+                    <div className="eyebrow !text-amber-300 mb-0.5">
+                      CS2 CARE PACKAGE & HAFTALIK DROP SİSTEMİ
+                    </div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2.5 flex-wrap">
+                      <span>Haftalık Kasa Takip Merkezi</span>
+                      <span
+                        className={`chip font-bold ${
+                          csClaimedThisWeek
+                            ? '!bg-emerald-500/20 !border-emerald-400/40 !text-emerald-300'
+                            : '!bg-amber-500/20 !border-amber-400/50 !text-amber-300'
+                        }`}
+                      >
+                        {csClaimedThisWeek ? '✅ Bu Hafta Alındı' : '📦 Kasa Hazır!'}
+                      </span>
+                    </h2>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Her Çarşamba saat 04:00&apos;te (TSİ) yeni hafta otomatik başlar ve önceki haftalarda aldığınız kasalar aşağıda haftalık geçmişe işlenir.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-start sm:items-end gap-1.5 shrink-0">
+                  <span className="chip !bg-amber-500/15 !border-amber-400/30 !text-amber-300 font-mono">
+                    ⏳ Sıfırlanmaya: {formatTimeUntilNextCs2Reset()}
+                  </span>
+                  <span className="text-[11px] text-text-muted">
+                    Mevcut Dönem: {currentWeekSlot.dateRangeLabel}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4'lü Özet İstatistik Kutuları */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-white/[0.025] border border-white/[0.07] flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-text-muted">Bu Haftaki Durum</div>
+                    <div
+                      className={`text-base font-extrabold mt-1 ${
+                        csClaimedThisWeek ? 'text-emerald-300' : 'text-amber-300'
+                      }`}
+                    >
+                      {csClaimedThisWeek ? '✅ Kasa Alındı' : '📦 Düşürülmeye Hazır'}
+                    </div>
+                  </div>
+                  <span className="text-2xl">{csClaimedThisWeek ? '✅' : '📦'}</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/[0.025] border border-white/[0.07]">
+                  <div className="text-xs text-text-muted mb-1">
+                    Toplam Düşürülen Kasa
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTotalDrops(totalDropsInput - 1)}
+                      disabled={isPending}
+                      className="btn btn-secondary btn-sm !h-7 !w-7 font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      value={totalDropsInput}
+                      onChange={(e) =>
+                        setTotalDropsInput(parseInt(e.target.value, 10) || 0)
+                      }
+                      onBlur={() => handleSaveTotalDrops(totalDropsInput)}
+                      className="input !h-7 !w-16 text-center font-bold tabular-nums text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTotalDrops(totalDropsInput + 1)}
+                      disabled={isPending}
+                      className="btn btn-secondary btn-sm !h-7 !w-7 font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/[0.025] border border-white/[0.07] flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs text-text-muted">Son Alınan Kasa</div>
+                    <div className="text-sm font-bold text-white truncate mt-1">
+                      {account.csLastCaseName || 'Henüz Kayıt Yok'}
+                    </div>
+                  </div>
+                  <span className="text-xl shrink-0">🎁</span>
+                </div>
+              </div>
+
+              {/* Bu Haftanın Kasasını Seç & Kaydet */}
+              <div className="p-4 rounded-2xl bg-black/30 border border-white/[0.07] space-y-3.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>🎯</span>
+                    <span>
+                      Bu Hafta ({currentWeekSlot.dateRangeLabel}) Düşen Kasayı Seçin ve İşaretleyin
+                    </span>
+                  </span>
+                </div>
+
+                {/* Hızlı Kasa Seçim Butonları */}
+                <div className="flex flex-wrap gap-2">
+                  {CS2_POPULAR_CASES.map((cName) => {
+                    const isSelected =
+                      !customCaseInput && selectedCaseName === cName;
+                    return (
+                      <button
+                        key={cName}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCaseName(cName);
+                          setCustomCaseInput('');
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-400/60 text-amber-200 shadow-[0_0_15px_-4px_rgba(245,158,11,0.5)]'
+                            : 'bg-white/[0.03] border-white/[0.07] text-text-secondary hover:text-white hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <span>📦</span>
+                        <span>{cName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Özel Kasa Adı + İşaretle Butonları */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                  <input
+                    type="text"
+                    value={customCaseInput}
+                    onChange={(e) => setCustomCaseInput(e.target.value)}
+                    placeholder="Veya özel kasa / skin / charm adı yazın (Örn: Bravo Case, AWP Skin...)"
+                    className="input !h-10 text-xs flex-1"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() =>
+                      handleWeekDropAction(
+                        currentWeekSlot.weekKey,
+                        currentWeekSlot.dateRangeLabel,
+                        true,
+                        customCaseInput.trim() || selectedCaseName
+                      )
+                    }
+                    className="btn btn-primary !h-10 shrink-0"
+                  >
+                    <span>
+                      ✓ Bu Hafta &quot;
+                      {customCaseInput.trim() || selectedCaseName}&quot; Alındı Kaydet
+                    </span>
+                  </button>
+
+                  {csClaimedThisWeek && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        handleWeekDropAction(
+                          currentWeekSlot.weekKey,
+                          currentWeekSlot.dateRangeLabel,
+                          false
+                        )
+                      }
+                      className="btn btn-danger !h-10 shrink-0"
+                    >
+                      <span>↩ Bu Haftayı Sıfırla</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 📅 SON 8 HAFTALIK DETAYLI KASA TAKVİMİ (BU HAFTA + ÖNCEKİ 7 HAFTA) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>📅</span>
+                      <span>Haftalık Drop Takvimi & Önceki Haftalar (Son 8 Hafta)</span>
+                    </h3>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Geçmiş haftalarda aldığınız kasaları görebilir veya dilediğiniz haftanın kasa kaydını değiştirebilirsiniz.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {recentWeeks.map((w) => {
+                    const rec = getDropRecordForWeek(account, w.weekKey);
+                    const isClaimed = Boolean(rec);
+                    const weekSelectedCase =
+                      weekCaseSelections[w.weekKey] ||
+                      rec?.caseName ||
+                      selectedCaseName;
+
+                    return (
+                      <div
+                        key={w.weekKey}
+                        className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
+                          isClaimed
+                            ? 'bg-emerald-500/[0.07] border-emerald-500/30'
+                            : w.isCurrentWeek
+                            ? 'bg-amber-500/[0.08] border-amber-400/35'
+                            : 'bg-white/[0.02] border-white/[0.07]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-white">
+                                {w.title}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/35 text-text-secondary">
+                                {w.dateRangeLabel}
+                              </span>
+                            </div>
+                            <div
+                              className={`text-xs font-bold mt-1.5 flex items-center gap-1.5 ${
+                                isClaimed
+                                  ? 'text-emerald-300'
+                                  : w.isCurrentWeek
+                                  ? 'text-amber-300'
+                                  : 'text-text-muted'
+                              }`}
+                            >
+                              {rec ? (
+                                <>
+                                  <span>✅ {rec.caseName}</span>
+                                </>
+                              ) : w.isCurrentWeek ? (
+                                <span>⏳ Bekliyor (Kasa Hazır)</span>
+                              ) : (
+                                <span>➖ Bu Hafta Kasa Alınmadı</span>
+                              )}
+                            </div>
+                            {rec?.claimedAt && (
+                              <div className="text-[10px] text-text-muted mt-0.5 font-mono">
+                                Kayıt:{' '}
+                                {new Date(rec.claimedAt).toLocaleString('tr-TR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          <span
+                            className={`text-lg shrink-0 ${
+                              isClaimed ? 'opacity-100' : 'opacity-50'
+                            }`}
+                          >
+                            {isClaimed ? '📦' : w.isCurrentWeek ? '⏳' : '⚪'}
+                          </span>
+                        </div>
+
+                        {/* Hafta İçi Kasa Seçici + İşaretle/Kaldır */}
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.06]">
+                          <select
+                            value={weekSelectedCase}
+                            onChange={(e) =>
+                              setWeekCaseSelections((prev) => ({
+                                ...prev,
+                                [w.weekKey]: e.target.value,
+                              }))
+                            }
+                            disabled={isPending}
+                            className="h-7 flex-1 min-w-0 rounded-lg bg-ink-950/80 border border-white/10 px-2 text-[11px] text-text-primary cursor-pointer truncate"
+                          >
+                            {CS2_POPULAR_CASES.map((cName) => (
+                              <option key={cName} value={cName}>
+                                {cName}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() =>
+                              handleWeekDropAction(
+                                w.weekKey,
+                                w.dateRangeLabel,
+                                true,
+                                weekSelectedCase
+                              )
+                            }
+                            className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 cursor-pointer shrink-0"
+                          >
+                            {isClaimed ? 'Güncelle' : '✓ Ekle'}
+                          </button>
+
+                          {isClaimed && (
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() =>
+                                handleWeekDropAction(
+                                  w.weekKey,
+                                  w.dateRangeLabel,
+                                  false
+                                )
+                              }
+                              className="h-7 px-2 rounded-lg text-[11px] font-bold bg-red-500/15 border border-red-400/30 text-red-300 hover:bg-red-500/25 cursor-pointer shrink-0"
+                              title="Bu haftanın kaydını sil"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 📊 KASA DAĞILIMI ÖZETİ */}
+              {Object.keys(caseBreakdown).length > 0 && (
+                <div className="pt-4 border-t border-white/[0.07]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-2.5">
+                    📊 Düşürülen Kasa Dağılımı
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(caseBreakdown).map(([cName, count]) => (
+                      <span
+                        key={cName}
+                        className="chip !h-7 !px-3 !bg-amber-500/10 !border-amber-400/30 !text-amber-200"
+                      >
+                        <span>📦 {cName}</span>
+                        <strong className="font-mono text-white ml-1">x{count}</strong>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="card p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    CS2 Haftalık Kasa Takibi
+                  </h3>
+                  <p className="text-xs text-text-muted">
+                    Bu hesap için haftalık kasa ve drop takvimini aktif etmek ister misiniz?
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToggleCsTracking(true)}
+                disabled={isPending}
+                className="btn btn-primary btn-sm shrink-0"
+              >
+                📦 Kasa Takibini Aç
+              </button>
+            </div>
+          )}
+
+          {/* ── RIOT LOL MAÇ GEÇMİŞİ (Sadece LoL ise) ── */}
+          {cleanGame === 'lol' && (
             <>
-              {/* Maç Geçmişi Üst Barı & İstatistik Kutuları */}
               <div className="card p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
@@ -905,13 +1572,6 @@ export default function AccountDetailClient({
                           )
                         : t('match_history')}
                     </h2>
-                    {matches.length === 0 && (
-                      <p className="text-xs text-text-secondary mt-0.5">
-                        {language === 'tr'
-                          ? 'Riot API üzerinden son 5 karşılaşma ve dereceli (Solo/Flex) rank bilgileri'
-                          : 'Recent 5 matches and ranked info via Riot API'}
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex flex-col items-stretch sm:items-end shrink-0">
@@ -937,16 +1597,7 @@ export default function AccountDetailClient({
                       )}
                     </button>
                     {matchSyncMsg && (
-                      <span
-                        className={`text-xs mt-1.5 font-medium ${
-                          matchSyncMsg.includes('✅')
-                            ? 'text-emerald-400'
-                            : matchSyncMsg.includes('ℹ️') ||
-                              matchSyncMsg.includes('⚠️')
-                            ? 'text-amber-400'
-                            : 'text-rose-400'
-                        }`}
-                      >
+                      <span className="text-xs mt-1.5 font-medium text-emerald-400">
                         {matchSyncMsg}
                       </span>
                     )}
@@ -969,9 +1620,7 @@ export default function AccountDetailClient({
                             {recentWinRate}% WR
                           </span>
                           <span className="text-xs text-text-secondary">
-                            ({wins}
-                            {t('stat_win_char')} {matches.length - wins}
-                            {t('stat_loss_char')})
+                            ({wins}W {matches.length - wins}L)
                           </span>
                         </div>
                       </div>
@@ -986,10 +1635,8 @@ export default function AccountDetailClient({
                           {t('avg_kda')}
                         </p>
                         <p className="text-2xl font-bold text-white tabular-nums">
-                          {avgKills}{' '}
-                          <span className="text-text-muted font-normal">/</span>{' '}
-                          <span className="text-rose-400">{avgDeaths}</span>{' '}
-                          <span className="text-text-muted font-normal">/</span>{' '}
+                          {avgKills} /{' '}
+                          <span className="text-rose-400">{avgDeaths}</span> /{' '}
                           {avgAssists}
                         </p>
                       </div>
@@ -1001,57 +1648,7 @@ export default function AccountDetailClient({
                 )}
               </div>
 
-              {/* Maç Kartları / Boş Durum */}
-              {matches.length === 0 ? (
-                <div className="card p-12 text-center flex flex-col items-center justify-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-accent-500/10 border border-accent-400/20 flex items-center justify-center text-3xl">
-                    {account.lastCheckedAt ? '📭' : '🎮'}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">
-                      {t('no_matches_title')}
-                    </h3>
-                    <p className="text-xs text-text-secondary mt-1 max-w-sm">
-                      {t('no_matches_desc')}
-                    </p>
-                  </div>
-                  <button
-                    className="btn btn-primary btn-lg"
-                    onClick={handleSyncMatches}
-                    disabled={isPending || isSyncingMatches}
-                  >
-                    {isSyncingMatches ? (
-                      <>
-                        <span className="inline-block animate-spin">⏳</span>
-                        <span>{t('fetching_matches')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>⚔️</span>
-                        <span>
-                          {matches.length > 0
-                            ? t('update_matches')
-                            : t('fetch_matches')}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                  {matchSyncMsg && (
-                    <p
-                      className={`text-xs mt-1 font-medium ${
-                        matchSyncMsg.includes('✅')
-                          ? 'text-emerald-400'
-                          : matchSyncMsg.includes('ℹ️') ||
-                            matchSyncMsg.includes('⚠️')
-                          ? 'text-amber-400'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      {matchSyncMsg}
-                    </p>
-                  )}
-                </div>
-              ) : (
+              {matches.length > 0 && (
                 <div className="flex flex-col gap-2.5 stagger">
                   {matches.map((match) => (
                     <div
@@ -1068,8 +1665,6 @@ export default function AccountDetailClient({
                           match.win ? 'bg-emerald-400' : 'bg-rose-500'
                         }`}
                       />
-
-                      {/* Sonuç & Süre */}
                       <div className="w-24 flex flex-col items-center sm:items-start text-center sm:text-left shrink-0">
                         <span
                           className={`text-xs font-extrabold uppercase tracking-wider ${
@@ -1084,7 +1679,6 @@ export default function AccountDetailClient({
                         </span>
                       </div>
 
-                      {/* Şampiyon */}
                       <div className="relative shrink-0">
                         <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/15 bg-ink-850">
                           <Image
@@ -1095,56 +1689,19 @@ export default function AccountDetailClient({
                             unoptimized
                           />
                         </div>
-                        <div className="absolute -bottom-1 -right-1 bg-ink-950/90 rounded-md px-1.5 py-0.5 border border-white/10 text-[10px] font-bold text-text-primary">
-                          {match.championName}
-                        </div>
                       </div>
 
-                      {/* KDA & CS */}
                       <div className="flex flex-col items-center sm:items-start w-28 shrink-0 tabular-nums">
-                        <span className="text-sm font-bold text-white tracking-wide">
-                          {match.kills}{' '}
-                          <span className="text-text-muted font-normal">/</span>{' '}
-                          <span className="text-rose-400">{match.deaths}</span>{' '}
-                          <span className="text-text-muted font-normal">/</span>{' '}
+                        <span className="text-sm font-bold text-white">
+                          {match.kills} /{' '}
+                          <span className="text-rose-400">{match.deaths}</span> /{' '}
                           {match.assists}
                         </span>
                         <span className="text-[11px] text-text-muted mt-0.5">
-                          <strong className="text-text-secondary">
-                            {match.cs}
-                          </strong>{' '}
-                          CS ({(match.cs / (match.gameDuration / 60)).toFixed(1)}
-                          /m)
+                          {match.cs} CS
                         </span>
                       </div>
 
-                      {/* Eşyalar */}
-                      <div className="flex items-center gap-1.5 mt-2 sm:mt-0 flex-wrap justify-center sm:justify-start">
-                        {match.items.slice(0, 6).map((itemId, i) => {
-                          const itemUrl = ddragon.item(itemId);
-                          return itemUrl ? (
-                            <div
-                              key={i}
-                              className="w-7 h-7 rounded-lg bg-ink-900 border border-white/10 overflow-hidden"
-                            >
-                              <Image
-                                src={itemUrl}
-                                alt="item"
-                                width={28}
-                                height={28}
-                                unoptimized
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              key={i}
-                              className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/[0.06]"
-                            />
-                          );
-                        })}
-                      </div>
-
-                      {/* Rol / Şerit */}
                       <div className="sm:ml-auto text-right">
                         <span className="chip font-mono !text-[10px] uppercase">
                           {match.lane === 'NONE' ? 'ARAM / SPECIAL' : match.lane}
@@ -1155,101 +1712,11 @@ export default function AccountDetailClient({
                 </div>
               )}
             </>
-          ) : (
-            /* Non-LoL Platform Detay & Yönetim Paneli */
-            <div className="card p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/[0.06]">
-                <div>
-                  <p className="eyebrow mb-1">PLATFORM PROFİLİ</p>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2 tracking-tight">
-                    <span>⚔️</span>
-                    <span>
-                      {(account.game || '').toUpperCase()} Karakter & Platform
-                      Yönetimi
-                    </span>
-                  </h2>
-                  <p className="text-xs text-text-secondary mt-1">
-                    Bu hesap üçüncü taraf platform / bağımsız MMO kategorisinde
-                    kayıtlıdır. Tüm parametreleri serbestçe düzenleyebilirsiniz.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="btn btn-primary shrink-0"
-                >
-                  <span>✏️</span>
-                  <span>Platforma Göre Düzenle</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/[0.025] border border-white/[0.06] rounded-xl p-4 flex flex-col gap-3">
-                  <span className="eyebrow flex items-center gap-1.5">
-                    <span>🎮</span> Oyun & Platform Detayları
-                  </span>
-                  <div className="flex justify-between text-xs py-1.5 border-b border-white/[0.05]">
-                    <span className="text-text-secondary">Oyun / Modül:</span>
-                    <span className="font-semibold text-white uppercase">
-                      {account.game || 'Oyun'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs py-1.5 border-b border-white/[0.05]">
-                    <span className="text-text-secondary">Platform:</span>
-                    <span className="font-semibold text-glow-400 uppercase">
-                      {account.platform || 'Albion'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs py-1.5">
-                    <span className="text-text-secondary">Bölge / Sunucu:</span>
-                    <span className="font-bold text-accent-300 uppercase">
-                      {account.platform || 'Europe'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-white/[0.025] border border-white/[0.06] rounded-xl p-4 flex flex-col gap-3">
-                  <span className="eyebrow flex items-center gap-1.5">
-                    <span>⭐</span> İlerleme & Seviye
-                  </span>
-                  <div className="flex justify-between text-xs py-1.5 border-b border-white/[0.05]">
-                    <span className="text-text-secondary">Mevcut Seviye:</span>
-                    <span className="font-bold text-white text-sm tabular-nums">
-                      Lv. {account.level ?? 1}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs py-1.5 border-b border-white/[0.05]">
-                    <span className="text-text-secondary">Derece / Tier:</span>
-                    <span className="font-bold text-emerald-400">
-                      {account.rank || 'Tier 4'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs py-1.5">
-                    <span className="text-text-secondary">Kategori:</span>
-                    <span className="font-semibold text-accent-300">
-                      {account.category || 'Kategorisiz'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-accent-500/[0.08] border border-accent-400/20 text-xs text-text-secondary flex items-start gap-3">
-                <span className="text-base shrink-0">💡</span>
-                <p className="leading-relaxed">
-                  Albion ve diğer harici oyunlarda Riot API yerine
-                  özelleştirilmiş platform profili kullanılır. Karakter adı,
-                  sunucu (Europe/Americas/Asia), Tier derecesi ve seviye
-                  bilgilerinizi{' '}
-                  <strong className="text-white">Platforma Göre Düzenle</strong>{' '}
-                  butonuna tıklayarak saniyeler içinde güncelleyebilirsiniz.
-                </p>
-              </div>
-            </div>
           )}
         </div>
       </div>
 
-      {/* Platforma Göre Hesap Düzenleme Modalı */}
+      {/* Gelişmiş Hesap Düzenleme Modalı */}
       <EditAccountModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}

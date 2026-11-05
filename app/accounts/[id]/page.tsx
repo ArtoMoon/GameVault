@@ -47,6 +47,15 @@ export default async function AccountDetailPage({ params }: PageProps) {
     _id: String(raw._id),
     game: raw.game || 'lol',
     category: raw.category || '',
+    csDropTracked:
+      typeof raw.csDropTracked === 'boolean'
+        ? raw.csDropTracked
+        : (raw.game || '').toLowerCase() === 'cs2',
+    csLastDropAt: raw.csLastDropAt ? new Date(raw.csLastDropAt) : null,
+    csTotalDrops: typeof raw.csTotalDrops === 'number' ? raw.csTotalDrops : 0,
+    csLastCaseName: raw.csLastCaseName ?? '',
+    csDropHistory: Array.isArray(raw.csDropHistory) ? raw.csDropHistory : [],
+    csPrime: typeof raw.csPrime === 'boolean' ? raw.csPrime : true,
     lastCheckedAt: raw.lastCheckedAt ? new Date(raw.lastCheckedAt) : new Date(0),
     createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(0),
     updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(0),
