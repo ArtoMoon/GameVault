@@ -2,6 +2,7 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 import { createHybridModel } from '@/lib/db/hybridModel';
 import type { PlayerRanks } from '@/lib/riot/rank';
 import type { MatchDetail } from '@/lib/riot/matches';
+import type { Cs2DropRecord } from '@/lib/cs2/dropTracker';
 
 /**
  * Allowed account status values.
@@ -57,6 +58,8 @@ export interface IAccount {
   csTotalDrops?: number;
   /** Son düşürülen kasa adı (Örn: "Kilowatt Case") */
   csLastCaseName?: string;
+  /** CS2 Haftalık kasa geçmişi (Bu hafta, Geçen hafta, önceki haftalar) */
+  csDropHistory?: Cs2DropRecord[];
   /** CS2 Prime durumu */
   csPrime?: boolean;
   /** Hesabın oluşturulma zamanı */
@@ -173,6 +176,10 @@ const AccountSchema = new Schema<IAccountDocument>(
       type: String,
       default: '',
       trim: true,
+    },
+    csDropHistory: {
+      type: Schema.Types.Mixed,
+      default: [],
     },
     csPrime: {
       type: Boolean,

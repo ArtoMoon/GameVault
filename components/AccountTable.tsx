@@ -60,6 +60,7 @@ export default function AccountTable({
 
   const activeGame = (gameSlug || controlledGame || '').toLowerCase();
   const isAlbion = activeGame === 'albion';
+  const isCs2 = activeGame === 'cs2';
   const isLoL = !activeGame || activeGame === 'lol';
 
   const rankOptions = isAlbion
@@ -72,6 +73,16 @@ export default function AccountTable({
         { value: 'Tier 8', label: 'Tier 8' },
         { value: 'Elder', label: 'Elder' },
         { value: 'Master', label: 'Master' },
+      ]
+    : isCs2
+    ? [
+        { value: '', label: 'Tüm CS Rating / Ranklar' },
+        { value: 'UNRANKED', label: 'Unranked / Prime' },
+        { value: '5,000', label: '5,000+ CS' },
+        { value: '10,000', label: '10,000+ CS' },
+        { value: '15,000', label: '15,000+ CS' },
+        { value: '20,000', label: '20,000+ CS' },
+        { value: 'Global Elite', label: 'Global Elite' },
       ]
     : [
         { value: '', label: t('rank_all') },
@@ -144,10 +155,10 @@ export default function AccountTable({
   // CS2 Kasa Takip sayaçları
   const csTrackedAccounts = accounts.filter(isAccountCs2DropTracked);
   const csReadyCount = csTrackedAccounts.filter(
-    (a) => !hasClaimedCs2DropThisWeek(a.csLastDropAt)
+    (a) => !hasClaimedCs2DropThisWeek(a.csLastDropAt, new Date(), a.csDropHistory)
   ).length;
   const csClaimedCount = csTrackedAccounts.filter((a) =>
-    hasClaimedCs2DropThisWeek(a.csLastDropAt)
+    hasClaimedCs2DropThisWeek(a.csLastDropAt, new Date(), a.csDropHistory)
   ).length;
 
   // Filtering
@@ -170,8 +181,8 @@ export default function AccountTable({
       !csDropFilter ||
       (isAccountCs2DropTracked(a) &&
         (csDropFilter === 'ready'
-          ? !hasClaimedCs2DropThisWeek(a.csLastDropAt)
-          : hasClaimedCs2DropThisWeek(a.csLastDropAt)));
+          ? !hasClaimedCs2DropThisWeek(a.csLastDropAt, new Date(), a.csDropHistory)
+          : hasClaimedCs2DropThisWeek(a.csLastDropAt, new Date(), a.csDropHistory)));
 
     // 3. Rank filter
     const aRank = (a.rank || 'UNRANKED').toUpperCase();
@@ -720,7 +731,7 @@ export default function AccountTable({
       ) : (
         <>
           {viewMode === 'grid' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 stagger">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 stagger">
               {sortedAndFiltered.map((account) => (
                 <AccountCard
                   key={account._id}
@@ -738,7 +749,7 @@ export default function AccountTable({
           )}
 
           {viewMode === 'compact-grid' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 stagger">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 stagger">
               {sortedAndFiltered.map((account) => (
                 <AccountCard
                   key={account._id}

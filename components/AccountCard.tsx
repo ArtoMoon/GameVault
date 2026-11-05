@@ -7,9 +7,12 @@ import type { AccountData } from '@/app/actions/accounts';
 import { deleteAccount, toggleCs2DropClaim } from '@/app/actions/accounts';
 import { syncAccount } from '@/app/actions/accountSync';
 import {
+  CS2_POPULAR_CASES,
   hasClaimedCs2DropThisWeek,
   isAccountCs2DropTracked,
   formatTimeUntilNextCs2Reset,
+  getRecentCs2Weeks,
+  getDropRecordForWeek,
 } from '@/lib/cs2/dropTracker';
 import StatusBadge from './StatusBadge';
 import RankBadge from './RankBadge';
@@ -43,76 +46,76 @@ function getRankStyle(rank?: string, unrankedLabel?: string) {
   const parts = rank.trim().split(' ');
   const tier = parts[0]?.toLowerCase() || '';
   const tierTitle = parts.slice(0, 2).join(' ') || rank;
-  const lpText = parts.slice(2).join(' ') || '0 LP';
+  const lpText = parts.slice(2).join(' ') || '';
 
   switch (tier) {
     case 'challenger':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-amber-300 font-bold tracking-tight',
         accentGradient: 'from-amber-500/15',
       };
     case 'grandmaster':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-rose-300 font-bold tracking-tight',
         accentGradient: 'from-rose-500/15',
       };
     case 'master':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-accent-300 font-bold tracking-tight',
         accentGradient: 'from-accent-500/18',
       };
     case 'diamond':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-cyan-300 font-bold tracking-tight',
         accentGradient: 'from-cyan-500/14',
       };
     case 'emerald':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-emerald-300 font-bold tracking-tight',
         accentGradient: 'from-emerald-500/14',
       };
     case 'platinum':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-teal-300 font-bold tracking-tight',
         accentGradient: 'from-teal-500/14',
       };
     case 'gold':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-amber-300 font-bold tracking-tight',
         accentGradient: 'from-amber-500/12',
       };
     case 'silver':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-zinc-200 font-semibold tracking-tight',
         accentGradient: 'from-zinc-400/10',
       };
     case 'bronze':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-orange-300 font-semibold tracking-tight',
         accentGradient: 'from-orange-500/10',
       };
     case 'iron':
       return {
         tierTitle,
-        lpText,
+        lpText: lpText || '0 LP',
         tierColor: 'text-stone-400 font-semibold tracking-tight',
         accentGradient: 'from-stone-500/10',
       };
@@ -178,6 +181,13 @@ export default function AccountCard({
   const { t, language } = useLanguage();
   const [isPending, startTransition] = useTransition();
   const [checkMsg, setCheckMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [selectedCaseName, setSelectedCaseName] = useState<string>(
+    account.csLastCaseName || CS2_POPULAR_CASES[0]
+  );
+
+  const cleanGame = (account.game || 'lol').toLowerCase();
+  const isCs2Game = cleanGame === 'cs2';
+  const supportsApiSync = ['lol', 'tft', 'albion'].includes(cleanGame);
 
   const rankStyle = getRankStyle(account.rank, t('unranked'));
   const relativeTime = formatRelativeTime(account.lastCheckedAt, t, language);
@@ -209,11 +219,23 @@ export default function AccountCard({
   }
 
   const csTracked = isAccountCs2DropTracked(account);
-  const csClaimed = hasClaimedCs2DropThisWeek(account.csLastDropAt);
+  const csClaimed = hasClaimedCs2DropThisWeek(
+    account.csLastDropAt,
+    new Date(),
+    account.csDropHistory
+  );
+  const recentWeeks = getRecentCs2Weeks(4);
 
-  function handleToggleCsDrop() {
+  function handleToggleCsDrop(targetWeekKey?: string, targetWeekLabel?: string, forceClaimed?: boolean) {
     startTransition(async () => {
-      await toggleCs2DropClaim(account._id, !csClaimed);
+      const nextClaimed = forceClaimed !== undefined ? forceClaimed : !csClaimed;
+      await toggleCs2DropClaim(
+        account._id,
+        nextClaimed,
+        selectedCaseName,
+        targetWeekKey,
+        targetWeekLabel
+      );
     });
   }
 
@@ -229,7 +251,7 @@ export default function AccountCard({
   if (viewMode === 'list') {
     return (
       <div
-        className={`card card-interactive group flex items-center gap-4 px-4 py-3 overflow-hidden ${
+        className={`card card-interactive group flex flex-wrap sm:flex-nowrap items-center gap-4 px-4 py-3 overflow-hidden ${
           isPending ? 'opacity-60 pointer-events-none' : ''
         }`}
       >
@@ -238,7 +260,7 @@ export default function AccountCard({
         {/* Profile Avatar */}
         <div className="relative pl-1 shrink-0">
           <div className="w-10 h-10 rounded-xl border border-white/10 bg-ink-800 overflow-hidden flex items-center justify-center">
-            {account.game === 'lol' ? (
+            {cleanGame === 'lol' ? (
               <Image
                 src={ddragon.profileIcon(account.profileIconId || 1)}
                 alt="Icon"
@@ -247,7 +269,7 @@ export default function AccountCard({
                 unoptimized
                 className="w-full h-full object-cover"
               />
-            ) : account.avatarUrl || account.game === 'albion' ? (
+            ) : account.avatarUrl || cleanGame === 'albion' ? (
               <img
                 src={account.avatarUrl || 'https://albion-log.com/avatars/male/AVATAR_07.webp'}
                 alt="Avatar"
@@ -255,7 +277,7 @@ export default function AccountCard({
               />
             ) : (
               <span className="text-lg">
-                {account.game === 'valorant' ? '🎯' : account.game === 'tft' ? '♟️' : account.game === 'cs2' ? '🔫' : '🎮'}
+                {cleanGame === 'valorant' ? '🎯' : cleanGame === 'tft' ? '♟️' : cleanGame === 'cs2' ? '🔫' : '🎮'}
               </span>
             )}
           </div>
@@ -265,7 +287,7 @@ export default function AccountCard({
         </div>
 
         {/* Identifier: Platform & Game & Category & Riot ID */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[180px]">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <PlatformBadge platform={account.platform} onClick={onPlatformClick} />
             <span
@@ -292,26 +314,38 @@ export default function AccountCard({
         </div>
 
         {/* Rank Showcase */}
-        <div className="flex items-center gap-3 px-4 border-l border-white/[0.06] min-w-[175px]">
-          <RankBadge rank={account.rank || 'UNRANKED'} size={32} onClick={onRankClick} />
+        <div className="flex items-center gap-3 px-4 border-l border-white/[0.06] min-w-[160px]">
+          {isCs2Game ? (
+            <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sm shrink-0">
+              🔫
+            </div>
+          ) : (
+            <RankBadge rank={account.rank || 'UNRANKED'} size={32} onClick={onRankClick} />
+          )}
           <div className="flex flex-col min-w-0">
             <span className={`text-xs leading-tight truncate ${rankStyle.tierColor}`}>
-              {rankStyle.tierTitle}
+              {isCs2Game && (!account.rank || account.rank === 'UNRANKED')
+                ? 'CS2 Prime'
+                : rankStyle.tierTitle}
             </span>
             <span className="text-[11px] text-text-muted tabular-nums">
               {winRate !== null
                 ? `${winRate}% WR (${soloRank?.wins}${t('stat_win_char')} ${soloRank?.losses}${t('stat_loss_char')})`
+                : isCs2Game
+                ? account.csPrime !== false
+                  ? '⭐ Prime Aktif'
+                  : 'Prime Yok'
                 : rankStyle.lpText}
             </span>
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status & CS2 Weekly Summary */}
         <div className="px-4 border-l border-white/[0.06] shrink-0 flex items-center gap-2">
           {csTracked && (
             <button
               type="button"
-              onClick={handleToggleCsDrop}
+              onClick={() => handleToggleCsDrop()}
               disabled={isPending}
               title={
                 csClaimed
@@ -321,10 +355,10 @@ export default function AccountCard({
               className={`h-7 px-2.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 csClaimed
                   ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
-                  : 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25 shadow-[0_0_14px_-4px_rgba(245,158,11,0.5)]'
+                  : 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25'
               }`}
             >
-              <span>{csClaimed ? '✅ Kasa Alındı' : '📦 Kasa Hazır'}</span>
+              <span>{csClaimed ? '✅ Bu Hafta Alındı' : '📦 Kasa Hazır'}</span>
               {(account.csTotalDrops || 0) > 0 && (
                 <span className="text-[10px] px-1 rounded bg-black/35 font-mono tabular-nums">
                   {account.csTotalDrops}
@@ -337,15 +371,17 @@ export default function AccountCard({
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 pl-1 shrink-0">
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm btn-icon !w-8 !h-8"
-            onClick={handleCheck}
-            disabled={isPending}
-            title={t('sync_btn')}
-          >
-            <SyncIcon spinning={isPending} />
-          </button>
+          {supportsApiSync && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-icon !w-8 !h-8"
+              onClick={handleCheck}
+              disabled={isPending}
+              title={t('sync_btn')}
+            >
+              <SyncIcon spinning={isPending} />
+            </button>
+          )}
           {onEditClick && (
             <button
               type="button"
@@ -381,7 +417,7 @@ export default function AccountCard({
 
   return (
     <div
-      className={`card card-interactive group flex flex-col rounded-2xl overflow-hidden ${
+      className={`card card-interactive group flex flex-col rounded-2xl overflow-hidden min-w-0 ${
         isPending ? 'opacity-60 pointer-events-none' : ''
       }`}
     >
@@ -390,9 +426,9 @@ export default function AccountCard({
         className={`absolute top-0 inset-x-0 h-20 bg-gradient-to-b ${rankStyle.accentGradient} to-transparent pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity`}
       />
 
-      <div className={`${isCompact ? 'p-3.5 gap-3' : 'p-4 gap-3.5'} flex flex-col flex-1 relative z-10`}>
+      <div className={`${isCompact ? 'p-3.5 gap-3' : 'p-4 gap-3.5'} flex flex-col flex-1 relative z-10 min-w-0`}>
         {/* Header: Profile Icon + Platform + Riot ID + Direct Link */}
-        <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-start justify-between gap-2 min-w-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Avatar with level badge */}
             <div className="relative shrink-0">
@@ -401,7 +437,7 @@ export default function AccountCard({
                   isCompact ? 'w-10 h-10' : 'w-11 h-11'
                 } rounded-xl border border-white/10 bg-ink-800 overflow-hidden group-hover:border-accent-400/40 transition-colors flex items-center justify-center`}
               >
-                {account.game === 'lol' ? (
+                {cleanGame === 'lol' ? (
                   <Image
                     src={ddragon.profileIcon(account.profileIconId || 1)}
                     alt="Avatar"
@@ -410,7 +446,7 @@ export default function AccountCard({
                     unoptimized
                     className="w-full h-full object-cover"
                   />
-                ) : account.avatarUrl || account.game === 'albion' ? (
+                ) : account.avatarUrl || cleanGame === 'albion' ? (
                   <img
                     src={account.avatarUrl || 'https://albion-log.com/avatars/male/AVATAR_07.webp'}
                     alt="Avatar"
@@ -418,11 +454,11 @@ export default function AccountCard({
                   />
                 ) : (
                   <span className="text-xl">
-                    {account.game === 'valorant'
+                    {cleanGame === 'valorant'
                       ? '🎯'
-                      : account.game === 'tft'
+                      : cleanGame === 'tft'
                       ? '♟️'
-                      : account.game === 'cs2'
+                      : cleanGame === 'cs2'
                       ? '🔫'
                       : '🎮'}
                   </span>
@@ -469,16 +505,30 @@ export default function AccountCard({
           </Link>
         </div>
 
-        {/* Hero Rank Section */}
-        <div className="bg-ink-950/55 border border-white/[0.06] rounded-xl p-2.5 flex items-center justify-between gap-3 group-hover:border-white/10 transition-colors">
+        {/* Hero Rank / CS2 Rating Section */}
+        <div className="bg-ink-950/55 border border-white/[0.06] rounded-xl p-2.5 flex items-center justify-between gap-2.5 group-hover:border-white/10 transition-colors min-w-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <RankBadge rank={account.rank || 'UNRANKED'} size={isCompact ? 34 : 38} onClick={onRankClick} />
+            {isCs2Game ? (
+              <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-base shrink-0">
+                🏆
+              </div>
+            ) : (
+              <RankBadge rank={account.rank || 'UNRANKED'} size={isCompact ? 34 : 38} onClick={onRankClick} />
+            )}
             <div className="flex flex-col min-w-0">
               <span className={`text-xs truncate leading-tight ${rankStyle.tierColor}`}>
-                {rankStyle.tierTitle}
+                {isCs2Game
+                  ? account.rank && account.rank !== 'UNRANKED'
+                    ? `Premier / Rank: ${account.rank}`
+                    : 'CS2 Prime Hesap'
+                  : rankStyle.tierTitle}
               </span>
               <span className="text-[11px] text-text-muted font-medium tabular-nums truncate mt-0.5">
-                {rankStyle.lpText}
+                {isCs2Game
+                  ? account.csPrime !== false
+                    ? '⭐ Prime Statüsü Aktif'
+                    : '⚪ Prime Yok'
+                  : rankStyle.lpText || `Seviye ${account.level || 1}`}
               </span>
             </div>
           </div>
@@ -502,46 +552,129 @@ export default function AccountCard({
           )}
         </div>
 
-        {/* 📦 CS2 Haftalık Kasa Takip Şeridi */}
+        {/* 📦 CS2 HAFTALIK KASA TAKİBİ & GEÇMİŞ HAFTALAR PANELİ */}
         {csTracked && (
           <div
-            className={`rounded-xl border px-3 py-2 flex items-center justify-between gap-2 transition-colors ${
+            className={`rounded-xl border p-3 space-y-2.5 transition-colors ${
               csClaimed
-                ? 'bg-emerald-500/[0.08] border-emerald-500/25'
-                : 'bg-amber-500/[0.10] border-amber-400/35'
+                ? 'bg-emerald-500/[0.06] border-emerald-500/25'
+                : 'bg-amber-500/[0.08] border-amber-400/35'
             }`}
           >
-            <div className="min-w-0">
+            {/* Üst Başlık: Bu Haftaki Durum + Sıfırlanma Sayacı */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white flex items-center gap-1">
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-bold ${
+                    csClaimed ? 'text-emerald-300' : 'text-amber-300'
+                  }`}
+                >
                   <span>{csClaimed ? '✅ Bu Hafta Alındı' : '📦 Kasa Hazır!'}</span>
                 </span>
-                {(account.csTotalDrops || 0) > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/35 text-amber-300 font-mono tabular-nums font-semibold">
-                    Toplam: {account.csTotalDrops}
-                  </span>
-                )}
               </div>
-              <div className="text-[10px] text-text-muted truncate mt-0.5">
-                {account.csLastCaseName
-                  ? `Son: ${account.csLastCaseName} • `
-                  : ''}
-                ⏳ Sıfırlanma: {formatTimeUntilNextCs2Reset()}
+              <div className="flex items-center gap-1.5 text-[10px] font-mono tabular-nums">
+                <span className="px-1.5 py-0.5 rounded bg-black/40 text-text-secondary">
+                  ⏳ {formatTimeUntilNextCs2Reset()}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold">
+                  Toplam: {account.csTotalDrops || 0}
+                </span>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleCsDrop}
-              disabled={isPending}
-              className={`h-7 px-2.5 rounded-lg text-[11px] font-bold shrink-0 border transition-all cursor-pointer ${
-                csClaimed
-                  ? 'bg-white/[0.06] border-white/10 text-text-secondary hover:text-white'
-                  : 'bg-amber-500/25 border-amber-400/60 text-amber-200 hover:bg-amber-500/35 shadow-[0_0_14px_-4px_rgba(245,158,11,0.6)]'
-              }`}
-            >
-              {csClaimed ? 'Geri Al' : '✓ Alındı İşaretle'}
-            </button>
+            {/* Kasa Seçici + Tek Tıkla Alındı İşaretle Butonu */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={selectedCaseName}
+                onChange={(e) => setSelectedCaseName(e.target.value)}
+                disabled={isPending}
+                aria-label="Düşen kasa seç"
+                className="h-8 flex-1 min-w-0 rounded-lg bg-ink-950/80 border border-white/10 px-2 text-[11px] text-text-primary focus:outline-none focus:border-amber-400/50 cursor-pointer truncate"
+              >
+                {CS2_POPULAR_CASES.map((cName) => (
+                  <option key={cName} value={cName}>
+                    📦 {cName}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => handleToggleCsDrop()}
+                disabled={isPending}
+                className={`h-8 px-3 rounded-lg text-[11px] font-bold shrink-0 border transition-all cursor-pointer whitespace-nowrap ${
+                  csClaimed
+                    ? 'bg-white/[0.06] border-white/10 text-text-secondary hover:text-white'
+                    : 'bg-amber-500/25 border-amber-400/60 text-amber-200 hover:bg-amber-500/35 shadow-[0_0_14px_-4px_rgba(245,158,11,0.5)]'
+                }`}
+              >
+                {csClaimed ? '↩ Geri Al' : '✓ Alındı'}
+              </button>
+            </div>
+
+            {/* 📅 Haftalık Geçmiş (Bu Hafta + Önceki 3 Hafta) */}
+            {!isCompact && (
+              <div className="pt-2 border-t border-white/[0.06]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                    📅 Haftalık Drop Geçmişi (Son 4 Hafta)
+                  </span>
+                  <span className="text-[9.5px] text-text-muted">
+                    Tıkla & Değiştir
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {recentWeeks.map((w) => {
+                    const rec = getDropRecordForWeek(account, w.weekKey);
+                    const isWeekClaimed = Boolean(rec);
+                    return (
+                      <button
+                        key={w.weekKey}
+                        type="button"
+                        disabled={isPending}
+                        onClick={() =>
+                          handleToggleCsDrop(
+                            w.weekKey,
+                            w.dateRangeLabel,
+                            !isWeekClaimed
+                          )
+                        }
+                        title={`${w.title} (${w.dateRangeLabel}): ${
+                          rec ? `${rec.caseName} alındı` : 'Alınmadı (İşaretlemek için tıkla)'
+                        }`}
+                        className={`p-1.5 rounded-lg border text-left transition-all cursor-pointer min-w-0 ${
+                          isWeekClaimed
+                            ? 'bg-emerald-500/12 border-emerald-500/30 hover:bg-emerald-500/20'
+                            : w.isCurrentWeek
+                            ? 'bg-amber-500/10 border-amber-400/30 hover:bg-amber-500/20'
+                            : 'bg-black/25 border-white/[0.06] hover:border-white/15'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 text-[10px] font-bold">
+                          <span className={w.isCurrentWeek ? 'text-white' : 'text-text-secondary'}>
+                            {w.shortTitle}
+                          </span>
+                          <span className="text-[9px] text-text-muted font-mono">
+                            {w.dateRangeLabel.split(' – ')[0]}
+                          </span>
+                        </div>
+                        <div
+                          className={`text-[10px] truncate mt-0.5 font-medium ${
+                            isWeekClaimed
+                              ? 'text-emerald-300'
+                              : w.isCurrentWeek
+                              ? 'text-amber-300'
+                              : 'text-text-muted'
+                          }`}
+                        >
+                          {rec ? `✅ ${rec.caseName.replace(' Case', '')}` : w.isCurrentWeek ? '⏳ Bekliyor' : '➖ Alınmadı'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -559,21 +692,22 @@ export default function AccountCard({
           </div>
         )}
 
-        {/* Footer: Status + Subtle Action Buttons */}
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] mt-auto">
+        {/* Footer: Status + Compact Action Buttons (Taşma yapmayan esnek yapı) */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] mt-auto min-w-0 flex-wrap">
           <StatusBadge status={account.status} onClick={onStatusClick} />
 
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={handleCheck}
-              disabled={isPending}
-              className="btn btn-ghost btn-sm !h-7 !px-2 text-[11px]"
-              title={t('sync_btn')}
-            >
-              <SyncIcon spinning={isPending} />
-              {!isCompact && <span>{isPending ? t('checking_btn') : t('check_btn')}</span>}
-            </button>
+          <div className="flex items-center gap-1 shrink-0 ml-auto">
+            {supportsApiSync && (
+              <button
+                type="button"
+                onClick={handleCheck}
+                disabled={isPending}
+                className="btn btn-ghost btn-sm btn-icon !w-7 !h-7"
+                title={t('sync_btn')}
+              >
+                <SyncIcon spinning={isPending} />
+              </button>
+            )}
 
             {onEditClick && (
               <button

@@ -16,6 +16,10 @@ import Platform from '@/models/Platform';
 import { getPuuidByRiotId } from '@/lib/riot/account';
 import { parseRiotId, sanitizeRiotId } from '@/lib/riot/utils';
 import { fetchAlbionCharacter, formatFame } from '@/lib/albion/api';
+import {
+  Cs2DropRecord,
+  getRecentCs2Weeks,
+} from '@/lib/cs2/dropTracker';
 
 /** Serializable hesap nesnesi (Mongoose Document olmayan) */
 export type AccountData = IAccount & { _id: string };
@@ -82,6 +86,7 @@ export async function getAccounts(
     csLastDropAt: a.csLastDropAt ? new Date(a.csLastDropAt) : null,
     csTotalDrops: typeof a.csTotalDrops === 'number' ? a.csTotalDrops : 0,
     csLastCaseName: a.csLastCaseName ?? '',
+    csDropHistory: Array.isArray(a.csDropHistory) ? a.csDropHistory : [],
     csPrime: typeof a.csPrime === 'boolean' ? a.csPrime : true,
     lastCheckedAt: a.lastCheckedAt ? new Date(a.lastCheckedAt) : new Date(0),
     createdAt: a.createdAt ? new Date(a.createdAt) : new Date(0),
@@ -289,6 +294,18 @@ export async function addAccount(
     const resolvedCsLastCaseName = csOptions?.csLastCaseName?.trim() || '';
     const resolvedCsPrime =
       typeof csOptions?.csPrime === 'boolean' ? csOptions.csPrime : true;
+    const currentWeekSlot = getRecentCs2Weeks(1)[0];
+    const resolvedCsDropHistory: Cs2DropRecord[] =
+      resolvedCsClaimed && currentWeekSlot
+        ? [
+            {
+              weekKey: currentWeekSlot.weekKey,
+              weekLabel: currentWeekSlot.dateRangeLabel,
+              caseName: resolvedCsLastCaseName || 'Kasa Alındı',
+              claimedAt: new Date().toISOString(),
+            },
+          ]
+        : [];
 
     // Kaydet
     const account = await Account.create({
@@ -308,6 +325,7 @@ export async function addAccount(
       csLastDropAt: resolvedCsLastDropAt,
       csTotalDrops: resolvedCsTotalDrops,
       csLastCaseName: resolvedCsLastCaseName,
+      csDropHistory: resolvedCsDropHistory,
       csPrime: resolvedCsPrime,
       lastCheckedAt: new Date(),
     });
@@ -692,12 +710,14 @@ export async function updateAccountGame(
 }
 
 /**
- * CS2 Haftalık Kasa Düşürme (Drop Claim) durumunu tek tıkla işaretler veya geri alır.
+ * CS2 Haftalık Kasa Düşürme (Drop Claim) durumunu bu hafta veya seçili geçmiş hafta için günceller.
  */
 export async function toggleCs2DropClaim(
   id: string,
   claimed: boolean,
-  caseName?: string
+  caseName?: string,
+  targetWeekKey?: string,
+  targetWeekLabel?: string
 ): Promise<{ success: boolean; error?: string; account?: AccountData }> {
   try {
     await dbConnect();
@@ -706,16 +726,53 @@ export async function toggleCs2DropClaim(
       return { success: false, error: 'Hesap bulunamadı.' };
     }
 
+    const currentWeekSlot = getRecentCs2Weeks(1)[0];
+    const weekKey = targetWeekKey || currentWeekSlot.weekKey;
+    const weekLabel = targetWeekLabel || currentWeekSlot.dateRangeLabel;
+    const isTargetingCurrentWeek = weekKey === currentWeekSlot.weekKey;
+
+    const prevHistory: Cs2DropRecord[] = Array.isArray(existing.csDropHistory)
+      ? [...existing.csDropHistory]
+      : [];
+
+    const cleanCaseName =
+      caseName !== undefined && caseName.trim()
+        ? caseName.trim()
+        : existing.csLastCaseName?.trim() || 'Kasa Alındı';
+
+    let nextHistory = prevHistory.filter((h) => h && h.weekKey !== weekKey);
+    if (claimed) {
+      nextHistory.unshift({
+        weekKey,
+        weekLabel,
+        caseName: cleanCaseName,
+        claimedAt: new Date().toISOString(),
+      });
+      nextHistory.sort((a, b) => b.weekKey.localeCompare(a.weekKey));
+    }
+
     const currentTotal =
       typeof existing.csTotalDrops === 'number' ? existing.csTotalDrops : 0;
+    const hadRecordBefore = prevHistory.some((h) => h && h.weekKey === weekKey);
+
+    let nextTotal = currentTotal;
+    if (claimed && !hadRecordBefore) {
+      nextTotal = Math.max(nextHistory.length, currentTotal + 1);
+    } else if (!claimed && hadRecordBefore) {
+      nextTotal = Math.max(0, currentTotal - 1);
+    }
 
     const updates: Record<string, unknown> = {
       csDropTracked: true,
-      csLastDropAt: claimed ? new Date() : null,
-      csTotalDrops: claimed ? currentTotal + 1 : Math.max(0, currentTotal - 1),
+      csDropHistory: nextHistory,
+      csTotalDrops: nextTotal,
     };
 
-    if (caseName !== undefined) {
+    if (isTargetingCurrentWeek) {
+      updates.csLastDropAt = claimed ? new Date() : null;
+    }
+
+    if (caseName !== undefined && caseName.trim()) {
       updates.csLastCaseName = caseName.trim();
     }
 
