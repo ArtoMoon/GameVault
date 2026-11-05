@@ -4,8 +4,13 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { AccountData } from '@/app/actions/accounts';
-import { deleteAccount } from '@/app/actions/accounts';
+import { deleteAccount, toggleCs2DropClaim } from '@/app/actions/accounts';
 import { syncAccount } from '@/app/actions/accountSync';
+import {
+  hasClaimedCs2DropThisWeek,
+  isAccountCs2DropTracked,
+  formatTimeUntilNextCs2Reset,
+} from '@/lib/cs2/dropTracker';
 import StatusBadge from './StatusBadge';
 import RankBadge from './RankBadge';
 import PlatformBadge from './PlatformBadge';
@@ -203,6 +208,15 @@ export default function AccountCard({
     });
   }
 
+  const csTracked = isAccountCs2DropTracked(account);
+  const csClaimed = hasClaimedCs2DropThisWeek(account.csLastDropAt);
+
+  function handleToggleCsDrop() {
+    startTransition(async () => {
+      await toggleCs2DropClaim(account._id, !csClaimed);
+    });
+  }
+
   const statusBarColors: Record<AccountStatus, string> = {
     available: 'bg-emerald-400',
     archived: 'bg-zinc-500',
@@ -293,7 +307,31 @@ export default function AccountCard({
         </div>
 
         {/* Status */}
-        <div className="px-4 border-l border-white/[0.06] shrink-0">
+        <div className="px-4 border-l border-white/[0.06] shrink-0 flex items-center gap-2">
+          {csTracked && (
+            <button
+              type="button"
+              onClick={handleToggleCsDrop}
+              disabled={isPending}
+              title={
+                csClaimed
+                  ? `Bu haftanın kasası alındı • Sıfırlanmaya: ${formatTimeUntilNextCs2Reset()} (Geri almak için tıkla)`
+                  : 'Haftalık CS2 kasası hazır! Alındı olarak işaretlemek için tıkla'
+              }
+              className={`h-7 px-2.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                csClaimed
+                  ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                  : 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25 shadow-[0_0_14px_-4px_rgba(245,158,11,0.5)]'
+              }`}
+            >
+              <span>{csClaimed ? '✅ Kasa Alındı' : '📦 Kasa Hazır'}</span>
+              {(account.csTotalDrops || 0) > 0 && (
+                <span className="text-[10px] px-1 rounded bg-black/35 font-mono tabular-nums">
+                  {account.csTotalDrops}
+                </span>
+              )}
+            </button>
+          )}
           <StatusBadge status={account.status} onClick={onStatusClick} />
         </div>
 
@@ -463,6 +501,49 @@ export default function AccountCard({
             </span>
           )}
         </div>
+
+        {/* 📦 CS2 Haftalık Kasa Takip Şeridi */}
+        {csTracked && (
+          <div
+            className={`rounded-xl border px-3 py-2 flex items-center justify-between gap-2 transition-colors ${
+              csClaimed
+                ? 'bg-emerald-500/[0.08] border-emerald-500/25'
+                : 'bg-amber-500/[0.10] border-amber-400/35'
+            }`}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white flex items-center gap-1">
+                  <span>{csClaimed ? '✅ Bu Hafta Alındı' : '📦 Kasa Hazır!'}</span>
+                </span>
+                {(account.csTotalDrops || 0) > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/35 text-amber-300 font-mono tabular-nums font-semibold">
+                    Toplam: {account.csTotalDrops}
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-text-muted truncate mt-0.5">
+                {account.csLastCaseName
+                  ? `Son: ${account.csLastCaseName} • `
+                  : ''}
+                ⏳ Sıfırlanma: {formatTimeUntilNextCs2Reset()}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggleCsDrop}
+              disabled={isPending}
+              className={`h-7 px-2.5 rounded-lg text-[11px] font-bold shrink-0 border transition-all cursor-pointer ${
+                csClaimed
+                  ? 'bg-white/[0.06] border-white/10 text-text-secondary hover:text-white'
+                  : 'bg-amber-500/25 border-amber-400/60 text-amber-200 hover:bg-amber-500/35 shadow-[0_0_14px_-4px_rgba(245,158,11,0.6)]'
+              }`}
+            >
+              {csClaimed ? 'Geri Al' : '✓ Alındı İşaretle'}
+            </button>
+          </div>
+        )}
 
         {/* Check feedback toast */}
         {checkMsg && (

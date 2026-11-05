@@ -75,10 +75,26 @@ export async function getAccounts(
     username: a.username ?? '',
     game: a.game || 'lol',
     category: a.category || '',
+    csDropTracked:
+      typeof a.csDropTracked === 'boolean'
+        ? a.csDropTracked
+        : (a.game || '').toLowerCase() === 'cs2',
+    csLastDropAt: a.csLastDropAt ? new Date(a.csLastDropAt) : null,
+    csTotalDrops: typeof a.csTotalDrops === 'number' ? a.csTotalDrops : 0,
+    csLastCaseName: a.csLastCaseName ?? '',
+    csPrime: typeof a.csPrime === 'boolean' ? a.csPrime : true,
     lastCheckedAt: a.lastCheckedAt ? new Date(a.lastCheckedAt) : new Date(0),
     createdAt: a.createdAt ? new Date(a.createdAt) : new Date(0),
     updatedAt: a.updatedAt ? new Date(a.updatedAt) : new Date(0),
   })) as AccountData[];
+}
+
+export interface Cs2AccountInitOptions {
+  csDropTracked?: boolean;
+  csClaimedThisWeek?: boolean;
+  csLastCaseName?: string;
+  csTotalDrops?: number;
+  csPrime?: boolean;
 }
 
 /**
@@ -107,7 +123,8 @@ export async function addAccount(
   game = 'lol',
   category = '',
   level?: number,
-  rank?: string
+  rank?: string,
+  csOptions?: Cs2AccountInitOptions
 ): Promise<{
   success: boolean;
   error?: string;
@@ -120,6 +137,35 @@ export async function addAccount(
     const cleanCategory = category ? category.trim() : '';
     const cleanUsername = username ? sanitizeRiotId(username) : '';
     const isRiotGame = ['lol', 'valorant', 'tft'].includes(cleanGame);
+    const isCs2 = cleanGame === 'cs2' || cleanGame.includes('counter-strike');
+
+    // Eğer CS2 hesabı ekleniyorsa ve henüz Steam/CS2 platformu yoksa otomatik oluştur
+    if (isCs2) {
+      const existingCsPlatform = await Platform.findOne({
+        $or: [{ slug: 'steam' }, { slug: 'cs2' }, { 'games.slug': 'cs2' }],
+      }).lean();
+      if (!existingCsPlatform) {
+        await Platform.create({
+          slug: 'steam',
+          name: 'Steam / CS2',
+          icon: '🔫',
+          color: '#38bdf8',
+          description: 'Counter-Strike 2 haftalık kasa takibi ve Steam hesapları.',
+          apiType: 'steam',
+          isDefault: true,
+          order: 2,
+          games: [
+            {
+              slug: 'cs2',
+              name: 'Counter-Strike 2',
+              icon: '🔫',
+              apiType: 'steam',
+              description: 'CS2 Prime hesapları, Premier rating ve haftalık kasa drop takibi.',
+            },
+          ],
+        });
+      }
+    }
 
     let gameName = '';
     let normalizedRiotId = '';
@@ -228,6 +274,22 @@ export async function addAccount(
       };
     }
 
+    const resolvedCsDropTracked =
+      typeof csOptions?.csDropTracked === 'boolean'
+        ? csOptions.csDropTracked
+        : isCs2;
+    const resolvedCsClaimed = Boolean(csOptions?.csClaimedThisWeek);
+    const resolvedCsLastDropAt = resolvedCsClaimed ? new Date() : null;
+    const resolvedCsTotalDrops =
+      typeof csOptions?.csTotalDrops === 'number' && !isNaN(csOptions.csTotalDrops)
+        ? Math.max(0, csOptions.csTotalDrops)
+        : resolvedCsClaimed
+        ? 1
+        : 0;
+    const resolvedCsLastCaseName = csOptions?.csLastCaseName?.trim() || '';
+    const resolvedCsPrime =
+      typeof csOptions?.csPrime === 'boolean' ? csOptions.csPrime : true;
+
     // Kaydet
     const account = await Account.create({
       riotId: normalizedRiotId,
@@ -242,6 +304,11 @@ export async function addAccount(
       rank: resolvedRank,
       avatarUrl: resolvedAvatarUrl || undefined,
       notes: autoNotes || undefined,
+      csDropTracked: resolvedCsDropTracked,
+      csLastDropAt: resolvedCsLastDropAt,
+      csTotalDrops: resolvedCsTotalDrops,
+      csLastCaseName: resolvedCsLastCaseName,
+      csPrime: resolvedCsPrime,
       lastCheckedAt: new Date(),
     });
 
@@ -272,6 +339,11 @@ export interface UpdateAccountPayload {
   rank?: string;
   notes?: string;
   avatarUrl?: string;
+  csDropTracked?: boolean;
+  csLastDropAt?: Date | string | null;
+  csTotalDrops?: number;
+  csLastCaseName?: string;
+  csPrime?: boolean;
 }
 
 /**
@@ -351,6 +423,26 @@ export async function updateAccount(
 
     if (payload.avatarUrl !== undefined) {
       updates.avatarUrl = payload.avatarUrl.trim();
+    }
+
+    if (typeof payload.csDropTracked === 'boolean') {
+      updates.csDropTracked = payload.csDropTracked;
+    }
+
+    if (payload.csLastDropAt !== undefined) {
+      updates.csLastDropAt = payload.csLastDropAt ? new Date(payload.csLastDropAt) : null;
+    }
+
+    if (payload.csTotalDrops !== undefined && !isNaN(Number(payload.csTotalDrops))) {
+      updates.csTotalDrops = Math.max(0, Number(payload.csTotalDrops));
+    }
+
+    if (payload.csLastCaseName !== undefined) {
+      updates.csLastCaseName = payload.csLastCaseName.trim();
+    }
+
+    if (typeof payload.csPrime === 'boolean') {
+      updates.csPrime = payload.csPrime;
     }
 
     const updated = await Account.findByIdAndUpdate(
@@ -595,6 +687,59 @@ export async function updateAccountGame(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Bilinmeyen hata.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * CS2 Haftalık Kasa Düşürme (Drop Claim) durumunu tek tıkla işaretler veya geri alır.
+ */
+export async function toggleCs2DropClaim(
+  id: string,
+  claimed: boolean,
+  caseName?: string
+): Promise<{ success: boolean; error?: string; account?: AccountData }> {
+  try {
+    await dbConnect();
+    const existing = await Account.findById(id).lean<IAccount>();
+    if (!existing) {
+      return { success: false, error: 'Hesap bulunamadı.' };
+    }
+
+    const currentTotal =
+      typeof existing.csTotalDrops === 'number' ? existing.csTotalDrops : 0;
+
+    const updates: Record<string, unknown> = {
+      csDropTracked: true,
+      csLastDropAt: claimed ? new Date() : null,
+      csTotalDrops: claimed ? currentTotal + 1 : Math.max(0, currentTotal - 1),
+    };
+
+    if (caseName !== undefined) {
+      updates.csLastCaseName = caseName.trim();
+    }
+
+    const updated = await Account.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    ).lean<IAccount>();
+
+    revalidatePath('/');
+    revalidatePath('/platform');
+    revalidatePath(`/accounts/${id}`);
+
+    return {
+      success: true,
+      account: updated
+        ? ({
+            ...updated,
+            _id: String((updated as IAccount & { _id: unknown })._id),
+          } as AccountData)
+        : undefined,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Kasa durumu güncellenemedi.';
     return { success: false, error: message };
   }
 }

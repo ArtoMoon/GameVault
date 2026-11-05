@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import type { AccountData } from '@/app/actions/accounts';
+import { toggleCs2DropClaim } from '@/app/actions/accounts';
 import type { CategoryData } from '@/app/actions/categories';
 import type { PlatformData } from '@/app/actions/platforms';
 import type { AccountStatus } from '@/models/Account';
+import {
+  hasClaimedCs2DropThisWeek,
+  isAccountCs2DropTracked,
+  formatTimeUntilNextCs2Reset,
+} from '@/lib/cs2/dropTracker';
 import AccountCard from './AccountCard';
 import StatusBadge from './StatusBadge';
 import RankBadge from './RankBadge';
@@ -87,9 +93,11 @@ export default function AccountTable({
   const [search, setSearch] = useState('');
   const [rankFilter, setRankFilter] = useState('');
   const [levelFilter, setLevelFilter] = useState<'30+' | '<30' | ''>('');
+  const [csDropFilter, setCsDropFilter] = useState<'ready' | 'claimed' | ''>('');
   const [sortBy, setSortBy] = useState<SortOption>('lastChecked');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [editingAccount, setEditingAccount] = useState<AccountData | null>(null);
+  const [, startTableTransition] = useTransition();
 
   // Controlled vs internal state
   const statusFilter = controlledStatus !== undefined ? controlledStatus : internalStatus;
@@ -133,6 +141,15 @@ export default function AccountTable({
   // Live count for 30+ level (Ranked ready)
   const level30Count = accounts.filter((a) => (a.level || 0) >= 30).length;
 
+  // CS2 Kasa Takip sayaçları
+  const csTrackedAccounts = accounts.filter(isAccountCs2DropTracked);
+  const csReadyCount = csTrackedAccounts.filter(
+    (a) => !hasClaimedCs2DropThisWeek(a.csLastDropAt)
+  ).length;
+  const csClaimedCount = csTrackedAccounts.filter((a) =>
+    hasClaimedCs2DropThisWeek(a.csLastDropAt)
+  ).length;
+
   // Filtering
   const filtered = accounts.filter((a) => {
     // 1. Status tag filter (including 'level')
@@ -147,6 +164,14 @@ export default function AccountTable({
 
     // 2.2 Category filter
     const matchesCategory = !categoryFilter || a.category === categoryFilter;
+
+    // 2.3 CS2 Drop filter
+    const matchesCsDrop =
+      !csDropFilter ||
+      (isAccountCs2DropTracked(a) &&
+        (csDropFilter === 'ready'
+          ? !hasClaimedCs2DropThisWeek(a.csLastDropAt)
+          : hasClaimedCs2DropThisWeek(a.csLastDropAt)));
 
     // 3. Rank filter
     const aRank = (a.rank || 'UNRANKED').toUpperCase();
@@ -166,7 +191,16 @@ export default function AccountTable({
 
     // 5. Smart search
     const s = search.toLowerCase().trim();
-    if (!s) return matchesStatus && matchesPlatform && matchesGame && matchesCategory && matchesRank && matchesLevel;
+    if (!s)
+      return (
+        matchesStatus &&
+        matchesPlatform &&
+        matchesGame &&
+        matchesCategory &&
+        matchesCsDrop &&
+        matchesRank &&
+        matchesLevel
+      );
 
     const matchesStatusKeyword =
       (s === 'level' && a.status === 'level') ||
@@ -198,6 +232,7 @@ export default function AccountTable({
       matchesPlatform &&
       matchesGame &&
       matchesCategory &&
+      matchesCsDrop &&
       matchesRank &&
       matchesLevel &&
       (matchesText || matchesStatusKeyword || matchesPlatformKeyword || matchesRankKeyword)
@@ -219,7 +254,14 @@ export default function AccountTable({
 
   // Check if any filter is active
   const hasActiveFilters = Boolean(
-    statusFilter || platformFilter || gameFilter || categoryFilter || rankFilter || levelFilter || search
+    statusFilter ||
+      platformFilter ||
+      gameFilter ||
+      categoryFilter ||
+      csDropFilter ||
+      rankFilter ||
+      levelFilter ||
+      search
   );
 
   const clearAllFilters = () => {
@@ -227,6 +269,7 @@ export default function AccountTable({
     setPlatformFilter('');
     setGameFilter('');
     setCategoryFilter('');
+    setCsDropFilter('');
     setRankFilter('');
     setLevelFilter('');
     setSearch('');
@@ -419,6 +462,43 @@ export default function AccountTable({
               {level30Count}
             </span>
           </button>
+        )}
+
+        {/* 📦 CS2 Haftalık Kasa Filtre Butonları */}
+        {(csTrackedAccounts.length > 0 || activeGame === 'cs2') && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCsDropFilter(csDropFilter === 'ready' ? '' : 'ready')}
+              className={`btn btn-sm ${
+                csDropFilter === 'ready'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
+                  : 'btn-secondary'
+              }`}
+              title={`Haftalık CS2 kasası düşürülmeye hazır hesaplar (Sıfırlanmaya: ${formatTimeUntilNextCs2Reset()})`}
+            >
+              <span>📦 Kasa Hazır</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono tabular-nums leading-none">
+                {csReadyCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCsDropFilter(csDropFilter === 'claimed' ? '' : 'claimed')}
+              className={`btn btn-sm ${
+                csDropFilter === 'claimed'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
+                  : 'btn-secondary'
+              }`}
+              title="Bu haftaki CS2 kasası alınmış hesaplar"
+            >
+              <span>✅ Kasa Alındı</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono tabular-nums leading-none">
+                {csClaimedCount}
+              </span>
+            </button>
+          </div>
         )}
 
         {/* Rank Seçici Dropdown */}
@@ -704,6 +784,7 @@ export default function AccountTable({
                       <th className="px-4 py-3 font-semibold">Kategori</th>
                       <th className="px-4 py-3 font-semibold">{t('th_region')}</th>
                       <th className="px-4 py-3 font-semibold">{t('th_status')}</th>
+                      <th className="px-4 py-3 font-semibold">CS2 Kasa</th>
                       <th className="px-4 py-3 font-semibold text-center">{t('th_level')}</th>
                       <th className="px-4 py-3 font-semibold">{t('th_rank')}</th>
                       <th className="px-4 py-3 font-semibold">{t('th_last_checked')}</th>
@@ -765,6 +846,39 @@ export default function AccountTable({
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={account.status} onClick={setStatusFilter} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {isAccountCs2DropTracked(account) ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startTableTransition(async () => {
+                                  await toggleCs2DropClaim(
+                                    account._id,
+                                    !hasClaimedCs2DropThisWeek(account.csLastDropAt)
+                                  );
+                                })
+                              }
+                              className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                                hasClaimedCs2DropThisWeek(account.csLastDropAt)
+                                  ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                                  : 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25'
+                              }`}
+                            >
+                              <span>
+                                {hasClaimedCs2DropThisWeek(account.csLastDropAt)
+                                  ? '✅ Alındı'
+                                  : '📦 Hazır'}
+                              </span>
+                              {(account.csTotalDrops || 0) > 0 && (
+                                <span className="font-mono opacity-80">
+                                  ({account.csTotalDrops})
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            <span className="text-text-muted text-xs">–</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center font-bold tabular-nums text-white">
                           {account.level || '–'}

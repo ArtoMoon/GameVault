@@ -46,9 +46,19 @@ export interface IAccount {
   lastCheckedAt: Date;
   /** Kullanıcı notu (isteğe bağlı) */
   notes?: string;
-  /** Oyun türü: 'lol' | 'valorant' | 'tft' | 'other' (Varsayılan: 'lol') */
+  /** Oyun türü: 'lol' | 'valorant' | 'tft' | 'cs2' | 'other' (Varsayılan: 'lol') */
   game?: string;
   category?: string;
+  /** CS2 Haftalık Kasa Takibi aktif mi? */
+  csDropTracked?: boolean;
+  /** CS2 Son haftalık kasa düşürme zamanı (Çarşamba 04:00 TSİ sıfırlanmasına göre kontrol edilir) */
+  csLastDropAt?: Date | string | null;
+  /** Toplam düşürülen CS2 kasa sayısı */
+  csTotalDrops?: number;
+  /** Son düşürülen kasa adı (Örn: "Kilowatt Case") */
+  csLastCaseName?: string;
+  /** CS2 Prime durumu */
+  csPrime?: boolean;
   /** Hesabın oluşturulma zamanı */
   createdAt?: Date;
   /** Hesabın son güncellenme zamanı */
@@ -145,6 +155,28 @@ const AccountSchema = new Schema<IAccountDocument>(
       type: String,
       default: '',
       trim: true,
+    },
+    csDropTracked: {
+      type: Boolean,
+      default: false,
+    },
+    csLastDropAt: {
+      type: Date,
+      default: null,
+    },
+    csTotalDrops: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    csLastCaseName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    csPrime: {
+      type: Boolean,
+      default: true,
     },
   },
   {

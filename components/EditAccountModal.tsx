@@ -6,6 +6,12 @@ import { CategoryData } from '@/app/actions/categories';
 import { PlatformData } from '@/app/actions/platforms';
 import { AccountStatus } from '@/models/Account';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import {
+  CS2_POPULAR_CASES,
+  formatTimeUntilNextCs2Reset,
+  hasClaimedCs2DropThisWeek,
+  isAccountCs2DropTracked,
+} from '@/lib/cs2/dropTracker';
 
 interface EditAccountModalProps {
   isOpen: boolean;
@@ -26,7 +32,7 @@ export default function EditAccountModal({
 }: EditAccountModalProps) {
   const { t } = useLanguage();
 
-  const dynamicGames =
+  const baseDynamicGames =
     platformsList && platformsList.length > 0
       ? [
           ...platformsList.flatMap((p) =>
@@ -45,14 +51,29 @@ export default function EditAccountModal({
                   : 'manual'),
             }))
           ),
-          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer', apiType: 'manual' },
         ]
       : [
           { value: 'lol', label: '⚔️ League of Legends', platformSlug: 'riot', gameName: 'LoL', apiType: 'riot' },
           { value: 'valorant', label: '🎯 Valorant', platformSlug: 'riot', gameName: 'Valorant', apiType: 'riot' },
           { value: 'tft', label: '♟️ TFT', platformSlug: 'riot', gameName: 'TFT', apiType: 'riot' },
-          { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer', apiType: 'manual' },
         ];
+
+  const hasCs2InList = baseDynamicGames.some((g) => g.value.toLowerCase() === 'cs2');
+  const dynamicGames = [
+    ...baseDynamicGames,
+    ...(!hasCs2InList
+      ? [
+          {
+            value: 'cs2',
+            label: '🔫 Counter-Strike 2 (CS2 Kasa Takip)',
+            platformSlug: 'steam',
+            gameName: 'Counter-Strike 2',
+            apiType: 'steam',
+          },
+        ]
+      : []),
+    { value: 'other', label: '🎮 Diğer Oyunlar', platformSlug: 'other', gameName: 'Diğer', apiType: 'manual' },
+  ];
 
   const riotPlatforms = [
     { value: 'TR1', label: t('platform_tr') || 'TR (Türkiye)' },
@@ -72,7 +93,7 @@ export default function EditAccountModal({
   ];
 
   const genericPlatforms = [
-    { value: 'Global', label: '🌐 Global' },
+    { value: 'Global', label: '🌐 Global / Steam' },
     { value: 'Europe', label: '🇪🇺 Europe (Avrupa)' },
     { value: 'North America', label: '🇺🇸 North America (Kuzey Amerika)' },
     { value: 'Turkey', label: '🇹🇷 Türkiye' },
@@ -81,6 +102,7 @@ export default function EditAccountModal({
 
   const albionPresetRanks = ['Tier 3', 'Tier 4', 'Tier 5', 'Tier 6', 'Tier 7', 'Tier 8', 'Elder', 'Master', 'PvP Leader'];
   const lolPresetRanks = ['UNRANKED', 'IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
+  const cs2PresetRanks = ['UNRANKED', '5,000 CS', '10,000 CS', '15,000 CS', '20,000+ CS', 'Silver', 'Gold Nova', 'Master Guardian', 'Legendary Eagle', 'Global Elite'];
 
   const [riotId, setRiotId] = useState('');
   const [username, setUsername] = useState('');
@@ -91,6 +113,13 @@ export default function EditAccountModal({
   const [level, setLevel] = useState<number>(1);
   const [rank, setRank] = useState('UNRANKED');
   const [notes, setNotes] = useState('');
+
+  // CS2 Kasa Takip Alanları
+  const [csDropTracked, setCsDropTracked] = useState(false);
+  const [csClaimedThisWeek, setCsClaimedThisWeek] = useState(false);
+  const [csLastCaseName, setCsLastCaseName] = useState('');
+  const [csTotalDrops, setCsTotalDrops] = useState<number>(0);
+  const [csPrime, setCsPrime] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -106,6 +135,11 @@ export default function EditAccountModal({
       setLevel(account.level || 0);
       setRank(account.rank || 'UNRANKED');
       setNotes(account.notes || '');
+      setCsDropTracked(isAccountCs2DropTracked(account));
+      setCsClaimedThisWeek(hasClaimedCs2DropThisWeek(account.csLastDropAt));
+      setCsLastCaseName(account.csLastCaseName || '');
+      setCsTotalDrops(typeof account.csTotalDrops === 'number' ? account.csTotalDrops : 0);
+      setCsPrime(typeof account.csPrime === 'boolean' ? account.csPrime : true);
       setError(null);
     }
   }, [account]);
@@ -114,13 +148,15 @@ export default function EditAccountModal({
 
   const selectedGameObj = dynamicGames.find((g) => g.value === game);
   const cleanGame = game.toLowerCase();
+  const isCs2 = cleanGame === 'cs2' || cleanGame.includes('counter-strike');
   const isAlbion =
     selectedGameObj?.apiType === 'albion' ||
     cleanGame === 'albion' ||
     cleanGame.includes('albion');
   const isRiotGame =
-    selectedGameObj?.apiType === 'riot' ||
-    ['lol', 'valorant', 'tft'].includes(cleanGame);
+    !isCs2 &&
+    (selectedGameObj?.apiType === 'riot' ||
+      ['lol', 'valorant', 'tft'].includes(cleanGame));
 
   const currentPlatformOptions = isRiotGame
     ? riotPlatforms
@@ -132,7 +168,10 @@ export default function EditAccountModal({
     setGame(newGame);
     const gLower = newGame.toLowerCase();
     const gObj = dynamicGames.find((d) => d.value === newGame);
-    if (gObj?.apiType === 'albion' || gLower === 'albion' || gLower.includes('albion')) {
+    if (gLower === 'cs2' || gLower.includes('counter-strike')) {
+      setCsDropTracked(true);
+      setPlatform('Global');
+    } else if (gObj?.apiType === 'albion' || gLower === 'albion' || gLower.includes('albion')) {
       setPlatform('Europe');
     } else if (gObj?.apiType === 'riot' || ['lol', 'valorant', 'tft'].includes(gLower)) {
       setPlatform('TR1');
@@ -151,6 +190,14 @@ export default function EditAccountModal({
     }
 
     startTransition(async () => {
+      const wasClaimedBefore = hasClaimedCs2DropThisWeek(account.csLastDropAt);
+      let nextLastDropAt: Date | string | null | undefined = undefined;
+      if (csClaimedThisWeek && !wasClaimedBefore) {
+        nextLastDropAt = new Date();
+      } else if (!csClaimedThisWeek && wasClaimedBefore) {
+        nextLastDropAt = null;
+      }
+
       const res = await updateAccount(account._id, {
         riotId: riotId.trim(),
         username: username.trim(),
@@ -161,6 +208,11 @@ export default function EditAccountModal({
         level: Number(level) || 0,
         rank: rank.trim() || 'UNRANKED',
         notes: notes.trim(),
+        csDropTracked: csDropTracked || isCs2,
+        ...(nextLastDropAt !== undefined ? { csLastDropAt: nextLastDropAt } : {}),
+        csLastCaseName: csLastCaseName.trim(),
+        csTotalDrops: Number(csTotalDrops) || 0,
+        csPrime,
       });
 
       if (res.success && res.account) {
@@ -205,7 +257,7 @@ export default function EditAccountModal({
                 </span>
               </h2>
               <p className="text-xs text-text-muted mt-0.5 truncate">
-                {isAlbion ? 'Albion Online' : isRiotGame ? 'Riot Games' : 'Oyun'} platformuna özel hesap ayarları
+                {isCs2 ? 'Counter-Strike 2' : isAlbion ? 'Albion Online' : isRiotGame ? 'Riot Games' : 'Oyun'} platformuna özel hesap ayarları
               </p>
             </div>
           </div>
@@ -231,7 +283,7 @@ export default function EditAccountModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Oyun Platformu Seçici */}
             <div>
               <label className="label flex items-center gap-1.5">
@@ -269,13 +321,115 @@ export default function EditAccountModal({
                 ))}
               </select>
             </div>
+
+            {/* CS2 Kasa Takibi Anahtarı */}
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <span>📦</span> CS2 Kasa Takibi
+              </label>
+              <button
+                type="button"
+                onClick={() => setCsDropTracked((prev) => !prev)}
+                className={`w-full h-10 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                  csDropTracked || isCs2
+                    ? 'bg-amber-500/15 border-amber-400/50 text-amber-300'
+                    : 'bg-ink-900/75 border-white/[0.08] text-text-secondary hover:text-white'
+                }`}
+              >
+                <span>{csDropTracked || isCs2 ? '📦 Kasa Takibi Aktif' : 'Kasa Takibi Kapalı'}</span>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    csDropTracked || isCs2 ? 'bg-amber-400' : 'bg-white/20'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
+
+          {/* 📦 CS2 HAFTALIK KASA TAKİP AYARLARI */}
+          {(csDropTracked || isCs2) && (
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.06] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>📦 CS2 Haftalık Kasa Takibi</span>
+                  <span className="text-[10px] font-normal text-text-muted">
+                    (Sıfırlanmaya: {formatTimeUntilNextCs2Reset()})
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCsPrime((prev) => !prev)}
+                  className={`h-6 px-2.5 rounded-lg border text-[11px] font-semibold cursor-pointer ${
+                    csPrime
+                      ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                      : 'bg-white/[0.04] border-white/[0.08] text-text-muted'
+                  }`}
+                >
+                  {csPrime ? '⭐ Prime Aktif' : '⚪ Prime Yok'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="label">Bu Haftaki Kasa</label>
+                  <div className="segmented w-full">
+                    <button
+                      type="button"
+                      data-active={!csClaimedThisWeek}
+                      onClick={() => setCsClaimedThisWeek(false)}
+                      className="flex-1 justify-center text-xs"
+                    >
+                      📦 Kasa Hazır
+                    </button>
+                    <button
+                      type="button"
+                      data-active={csClaimedThisWeek}
+                      onClick={() => setCsClaimedThisWeek(true)}
+                      className="flex-1 justify-center text-xs"
+                    >
+                      ✅ Alındı
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Son Düşen Kasa</label>
+                  <input
+                    type="text"
+                    list="edit-cs2-case-presets"
+                    className="input text-xs"
+                    placeholder="Örn: Kilowatt Case"
+                    value={csLastCaseName}
+                    onChange={(e) => setCsLastCaseName(e.target.value)}
+                    disabled={isPending}
+                  />
+                  <datalist id="edit-cs2-case-presets">
+                    {CS2_POPULAR_CASES.map((cName) => (
+                      <option key={cName} value={cName} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="label">Toplam Kasa Sayısı</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input tabular-nums text-xs"
+                    value={csTotalDrops}
+                    onChange={(e) => setCsTotalDrops(parseInt(e.target.value, 10) || 0)}
+                    disabled={isPending}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Hesap / Karakter Adı */}
             <div>
               <label className="label flex items-center gap-1.5">
-                <span>⚡</span> {isAlbion ? 'Albion Karakter Adı' : isRiotGame ? 'Riot ID (GameName#TAG)' : 'Hesap / Karakter Adı'}
+                <span>⚡</span> {isCs2 ? 'Steam / CS2 Hesap Adı' : isAlbion ? 'Albion Karakter Adı' : isRiotGame ? 'Riot ID (GameName#TAG)' : 'Hesap / Karakter Adı'}
               </label>
               <input
                 type="text"
@@ -363,7 +517,7 @@ export default function EditAccountModal({
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <label className="label !mb-0 flex items-center gap-1.5">
-                <span>🏆</span> {isAlbion ? 'Albion Tier / Rank' : 'Rank / Lig / Derece'}
+                <span>🏆</span> {isCs2 ? 'CS2 Premier / Rank' : isAlbion ? 'Albion Tier / Rank' : 'Rank / Lig / Derece'}
               </label>
               <span className="text-[11px] text-text-muted">
                 Hızlı şablonlara tıklayabilir veya serbest metin yazabilirsiniz
@@ -372,14 +526,14 @@ export default function EditAccountModal({
             <input
               type="text"
               className="input"
-              placeholder={isAlbion ? 'Örn: Tier 8 Elder' : 'Örn: GOLD II 45 LP'}
+              placeholder={isCs2 ? 'Örn: 15,000 CS' : isAlbion ? 'Örn: Tier 8 Elder' : 'Örn: GOLD II 45 LP'}
               value={rank}
               onChange={(e) => setRank(e.target.value)}
               disabled={isPending}
             />
             {/* Hızlı Şablon Butonları */}
             <div className="flex flex-wrap items-center gap-1.5 pt-2">
-              {(isAlbion ? albionPresetRanks : isRiotGame ? lolPresetRanks : albionPresetRanks).map((pr) => {
+              {(isCs2 ? cs2PresetRanks : isAlbion ? albionPresetRanks : isRiotGame ? lolPresetRanks : albionPresetRanks).map((pr) => {
                 const isSelected = rank.toUpperCase().includes(pr.toUpperCase());
                 return (
                   <button
